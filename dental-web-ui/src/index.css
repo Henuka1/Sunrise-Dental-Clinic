@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap");
+
+@layer base {
+	body {
+		font-family: "Plus Jakarta Sans", sans-serif;
+		color: #0f172a;
+		background: radial-gradient(circle at 10% 5%, #e8fdf8 0%, #f6fcff 32%, #f8fafc 75%);
+		letter-spacing: -0.01em;
+	}
+
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
+		letter-spacing: -0.02em;
+	}
+}
