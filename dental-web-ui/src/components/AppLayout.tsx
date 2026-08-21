@@ -59,6 +59,7 @@ export default function AppLayout() {
             <NavLink
               key={link.to}
               to={link.to}
+              end
               onClick={() => mobile && setMobileOpen(false)}
               className={({ isActive }) =>
                 cn(

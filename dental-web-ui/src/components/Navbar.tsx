@@ -34,6 +34,7 @@ export default function Navbar() {
             <NavLink
               key={link.to}
               to={link.to}
+              end
               className={({ isActive }) =>
                 cn(
                   "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
@@ -77,6 +78,7 @@ export default function Navbar() {
               <NavLink
                 key={link.to}
                 to={link.to}
+                end
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
                   cn(
