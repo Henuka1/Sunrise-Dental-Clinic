@@ -12,11 +12,22 @@ import type {
   RevenueReportData,
   DentistReportData,
   PatientReportData,
+  ManagedUser,
+  UserPayload,
 } from "@/types";
 
 export const authService = {
   login: (data: LoginRequest) => api.post<LoginResponse>("/auth/login", data),
   logout: () => api.post<ApiResponse<null>>("/auth/logout"),
+};
+
+export const userService = {
+  getAll: () => api.get<ApiResponse<ManagedUser[]>>("/users"),
+  getById: (id: number) => api.get<ApiResponse<ManagedUser>>(`/users/${id}`),
+  create: (data: UserPayload) => api.post<ApiResponse<ManagedUser>>("/users", data),
+  update: (id: number, data: Partial<UserPayload>) =>
+    api.put<ApiResponse<ManagedUser>>(`/users/${id}`, data),
+  remove: (id: number) => api.delete<ApiResponse<null>>(`/users/${id}`),
 };
 
 export const patientService = {

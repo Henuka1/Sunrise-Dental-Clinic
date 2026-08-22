@@ -13,6 +13,7 @@ const ROLE_ACCESS: Record<UserRole, string[]> = {
     "/search",
     "/billing",
     "/reports",
+    "/users",
     "/help",
   ],
   RECEPTIONIST: [

@@ -208,6 +208,30 @@ export default function DashboardPage() {
           </Card>
         )}
       </div>
+
+      {!isDentist && user?.role === "ADMIN" && (
+        <div className="mt-6">
+          <Card className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-teal-600 text-white shadow-lg shadow-teal-600/20">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">User Management</p>
+                <p className="text-xs text-slate-500">
+                  Manage administrators, receptionists, and dentist accounts
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/users"
+              className="inline-flex h-11 shrink-0 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white transition-colors hover:bg-teal-700"
+            >
+              Manage Users
+            </Link>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

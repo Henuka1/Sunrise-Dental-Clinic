@@ -29,6 +29,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/search": Search,
   "/billing": ReceiptText,
   "/reports": BarChart3,
+  "/users": UserRoundPlus,
   "/help": LifeBuoy,
 };
 

@@ -33,6 +33,7 @@ export const NAV_LINKS: Record<UserRole, { to: string; label: string }[]> = {
     { to: "/search", label: "Search" },
     { to: "/billing", label: "Billing" },
     { to: "/reports", label: "Reports" },
+    { to: "/users", label: "User Management" },
     { to: "/help", label: "Help" },
   ],
   RECEPTIONIST: [

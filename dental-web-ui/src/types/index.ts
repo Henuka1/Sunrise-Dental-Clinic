@@ -88,6 +88,21 @@ export interface LoginResponse {
   dentistId?: number;
 }
 
+export interface ManagedUser {
+  userId: number;
+  username: string;
+  fullName: string;
+  role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
+  createdAt?: string;
+}
+
+export interface UserPayload {
+  username: string;
+  password?: string;
+  fullName: string;
+  role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
+}
+
 export interface DailyReportData {
   date: string;
   appointments: Appointment[];

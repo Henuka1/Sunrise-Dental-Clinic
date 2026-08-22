@@ -24,6 +24,7 @@ public class ApplicationConfig extends Application {
         classes.add(TreatmentResource.class);
         classes.add(BillResource.class);
         classes.add(ReportResource.class);
+        classes.add(UserResource.class);
         return classes;
     }
 }

@@ -72,6 +72,14 @@ public class AuthenticationFilter implements Filter {
             }
         }
 
+        // Role-based restriction: RECEPTIONIST / DENTIST are NOT allowed to manage users.
+        if (user != null && !"ADMIN".equals(user.getRole()) && path.startsWith("/api/users")) {
+            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            res.setContentType("application/json");
+            res.getWriter().write("{\"success\":false,\"message\":\"Access denied: Only ADMIN can manage users\"}");
+            return;
+        }
+
         chain.doFilter(request, response);
     }
 

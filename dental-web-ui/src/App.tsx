@@ -13,6 +13,7 @@ import ReportsPage from "@/pages/ReportsPage";
 import HelpPage from "@/pages/HelpPage";
 import PatientRegisterPage from "@/pages/PatientRegisterPage";
 import PatientsPage from "@/pages/PatientsPage";
+import UserManagementPage from "@/pages/UserManagementPage";
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth();
@@ -38,6 +39,7 @@ function AppRoutes() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/billing" element={<BillingPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/users" element={<UserManagementPage />} />
         <Route path="/help" element={<HelpPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
