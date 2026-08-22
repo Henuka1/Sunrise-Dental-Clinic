@@ -246,6 +246,12 @@ VALUES
     'recep123',
     'Reception Staff',
     'RECEPTIONIST'
+),
+(
+    'dentist',
+    'dentist123',
+    'Dr. Sunil Perera',
+    'DENTIST'
 );
 
 

@@ -35,7 +35,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       const res = await authService.login(data);
-      const { token, username, fullName, role } = res.data;
+      const { token, username, fullName, role, dentistId } = res.data;
       login(
         token,
         {
@@ -43,6 +43,7 @@ export default function LoginPage() {
           username,
           fullName,
           role: role as "ADMIN" | "RECEPTIONIST" | "DENTIST",
+          dentistId,
         }
       );
       toast.success("Welcome back!");

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Calendar, Plus, XCircle, CheckCircle } from "lucide-react";
+import { Calendar, Plus, XCircle, CheckCircle, UserX } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -12,18 +12,21 @@ import Spinner from "@/components/ui/Spinner";
 import ErrorState from "@/components/ErrorState";
 import EmptyState, { TableLoading } from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { useAuth } from "@/context/AuthContext";
 import { appointmentService } from "@/lib/services";
 import { getTodayString, formatDate, formatTime, getErrorMessage } from "@/lib/utils";
 import type { Appointment } from "@/types";
 
 export default function AppointmentsPage() {
+  const { user } = useAuth();
+  const isDentist = user?.role === "DENTIST";
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filterDate, setFilterDate] = useState(getTodayString());
   const [filterStatus, setFilterStatus] = useState("");
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
-  const [completing, setCompleting] = useState<number | null>(null);
+  const [updating, setUpdating] = useState<number | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -58,7 +61,7 @@ export default function AppointmentsPage() {
   };
 
   const handleComplete = async (apt: Appointment) => {
-    setCompleting(apt.appointmentId);
+    setUpdating(apt.appointmentId);
     try {
       await appointmentService.complete(apt.appointmentId);
       toast.success("Appointment marked as completed");
@@ -66,23 +69,38 @@ export default function AppointmentsPage() {
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
-      setCompleting(null);
+      setUpdating(null);
+    }
+  };
+
+  const handleNoShow = async (apt: Appointment) => {
+    setUpdating(apt.appointmentId);
+    try {
+      await appointmentService.noShow(apt.appointmentId);
+      toast.success("Appointment marked as no-show");
+      load();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setUpdating(null);
     }
   };
 
   return (
     <div>
       <PageHeader
-        title="Appointments"
-        description="View and manage all appointments"
+        title={isDentist ? "My Appointments" : "Appointments"}
+        description={isDentist ? "View and manage your scheduled appointments" : "View and manage all appointments"}
         action={
-          <Link
-            to="/appointments/new"
-            className="inline-flex h-11 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white transition-colors hover:bg-teal-700"
-          >
-            <Plus className="h-4 w-4" />
-            New Appointment
-          </Link>
+          !isDentist ? (
+            <Link
+              to="/appointments/new"
+              className="inline-flex h-11 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white transition-colors hover:bg-teal-700"
+            >
+              <Plus className="h-4 w-4" />
+              New Appointment
+            </Link>
+          ) : undefined
         }
       />
 
@@ -129,15 +147,17 @@ export default function AppointmentsPage() {
         <EmptyState
           icon={<Calendar className="h-12 w-12" />}
           title="No appointments found"
-          description="Try adjusting your filters or create a new appointment."
+          description={isDentist ? "You have no appointments matching these filters." : "Try adjusting your filters or create a new appointment."}
           action={
-            <Link
-              to="/appointments/new"
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-medium text-white hover:bg-teal-700"
-            >
-              <Plus className="h-4 w-4" />
-              New Appointment
-            </Link>
+            !isDentist ? (
+              <Link
+                to="/appointments/new"
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-medium text-white hover:bg-teal-700"
+              >
+                <Plus className="h-4 w-4" />
+                New Appointment
+              </Link>
+            ) : undefined
           }
         />
       ) : (
@@ -148,7 +168,7 @@ export default function AppointmentsPage() {
                 <tr>
                   <th className="px-6 py-3 font-medium">Apt #</th>
                   <th className="px-6 py-3 font-medium">Patient</th>
-                  <th className="px-6 py-3 font-medium">Dentist</th>
+                  {!isDentist && <th className="px-6 py-3 font-medium">Dentist</th>}
                   <th className="px-6 py-3 font-medium">Treatment</th>
                   <th className="px-6 py-3 font-medium">Date</th>
                   <th className="px-6 py-3 font-medium">Time</th>
@@ -163,7 +183,7 @@ export default function AppointmentsPage() {
                       {apt.appointmentNumber}
                     </td>
                     <td className="px-6 py-4 text-slate-900">{apt.patientName}</td>
-                    <td className="px-6 py-4 text-slate-600">Dr. {apt.dentistName}</td>
+                    {!isDentist && <td className="px-6 py-4 text-slate-600">Dr. {apt.dentistName}</td>}
                     <td className="px-6 py-4 text-slate-600">{apt.treatmentName}</td>
                     <td className="px-6 py-4 text-slate-600">{formatDate(apt.appointmentDate)}</td>
                     <td className="px-6 py-4 text-slate-600">{formatTime(apt.appointmentTime)}</td>
@@ -178,19 +198,34 @@ export default function AppointmentsPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleComplete(apt)}
-                              loading={completing === apt.appointmentId}
+                              loading={updating === apt.appointmentId}
                               className="text-green-600 hover:bg-green-50"
+                              title="Mark Complete"
                             >
                               <CheckCircle className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setCancelTarget(apt)}
-                              className="text-red-600 hover:bg-red-50"
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </Button>
+                            {isDentist ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleNoShow(apt)}
+                                loading={updating === apt.appointmentId}
+                                className="text-amber-600 hover:bg-amber-50"
+                                title="Mark No-Show"
+                              >
+                                <UserX className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setCancelTarget(apt)}
+                                className="text-red-600 hover:bg-red-50"
+                                title="Cancel"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
                           </>
                         )}
                       </div>

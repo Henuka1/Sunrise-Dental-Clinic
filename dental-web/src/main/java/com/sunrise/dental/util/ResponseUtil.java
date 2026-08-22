@@ -48,6 +48,13 @@ public class ResponseUtil {
                 .build();
     }
 
+    public static Response forbidden(String message) {
+        return Response.status(Response.Status.FORBIDDEN)
+                .entity("{\"success\":false,\"message\":\"" + message + "\"}")
+                .type("application/json")
+                .build();
+    }
+
     public static Response serverError(String message) {
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .entity("{\"success\":false,\"message\":\"" + message + "\"}")

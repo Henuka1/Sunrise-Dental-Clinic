@@ -22,13 +22,35 @@ export const STATUS_COLORS: Record<string, string> = {
   PARTIAL: "bg-yellow-100 text-yellow-700 border-yellow-200",
 };
 
-export const NAV_LINKS = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/patients/new", label: "Register Patient" },
-  { to: "/appointments/new", label: "New Appointment" },
-  { to: "/appointments", label: "Appointments" },
-  { to: "/search", label: "Search" },
-  { to: "/billing", label: "Billing" },
-  { to: "/reports", label: "Reports" },
-  { to: "/help", label: "Help" },
-] as const;
+export type UserRole = "ADMIN" | "RECEPTIONIST" | "DENTIST";
+
+export const NAV_LINKS: Record<UserRole, { to: string; label: string }[]> = {
+  ADMIN: [
+    { to: "/dashboard", label: "Dashboard" },
+    { to: "/patients/new", label: "Register Patient" },
+    { to: "/appointments/new", label: "New Appointment" },
+    { to: "/appointments", label: "Appointments" },
+    { to: "/search", label: "Search" },
+    { to: "/billing", label: "Billing" },
+    { to: "/reports", label: "Reports" },
+    { to: "/help", label: "Help" },
+  ],
+  RECEPTIONIST: [
+    { to: "/dashboard", label: "Dashboard" },
+    { to: "/patients/new", label: "Register Patient" },
+    { to: "/appointments/new", label: "New Appointment" },
+    { to: "/appointments", label: "Appointments" },
+    { to: "/search", label: "Search" },
+    { to: "/billing", label: "Billing" },
+    { to: "/reports", label: "Reports" },
+    { to: "/help", label: "Help" },
+  ],
+  DENTIST: [
+    { to: "/dashboard", label: "Dashboard" },
+    { to: "/appointments", label: "My Appointments" },
+    { to: "/search", label: "Search" },
+    { to: "/patients", label: "Patient History" },
+    { to: "/reports", label: "My Reports" },
+    { to: "/help", label: "Help" },
+  ],
+};

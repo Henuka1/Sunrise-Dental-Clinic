@@ -30,7 +30,7 @@ export default function Navbar() {
         </div>
 
         <nav className="hidden items-center gap-1 lg:flex">
-          {NAV_LINKS.map((link) => (
+          {(NAV_LINKS[user?.role ?? "ADMIN"] || NAV_LINKS.ADMIN).map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
@@ -74,7 +74,7 @@ export default function Navbar() {
       {mobileOpen && (
         <nav className="border-t border-slate-200 bg-white px-4 py-3 lg:hidden">
           <div className="space-y-1">
-            {NAV_LINKS.map((link) => (
+            {(NAV_LINKS[user?.role ?? "ADMIN"] || NAV_LINKS.ADMIN).map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}

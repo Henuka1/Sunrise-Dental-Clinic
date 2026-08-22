@@ -14,6 +14,7 @@ public class User {
     private String password;
     private String fullName;
     private String role;
+    private int dentistId;
     private String createdAt;
 
     public User() {}
@@ -35,6 +36,8 @@ public class User {
     public void setFullName(String fullName) { this.fullName = fullName; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+    public int getDentistId() { return dentistId; }
+    public void setDentistId(int dentistId) { this.dentistId = dentistId; }
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 }

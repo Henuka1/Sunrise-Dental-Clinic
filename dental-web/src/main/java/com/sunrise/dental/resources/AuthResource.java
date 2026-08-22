@@ -5,11 +5,13 @@
 package com.sunrise.dental.resources;
 
 import com.google.gson.Gson;
+import com.sunrise.dental.dao.DentistDAO;
 import com.sunrise.dental.dao.UserDAO;
 import com.sunrise.dental.dto.LoginRequestDTO;
 import com.sunrise.dental.dto.LoginResponseDTO;
 import com.sunrise.dental.model.User;
 import com.sunrise.dental.util.ResponseUtil;
+import com.sunrise.dental.util.TokenStore;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -22,6 +24,7 @@ import java.util.UUID;
 public class AuthResource {
     private final Gson gson = new Gson();
     private final UserDAO userDAO = new UserDAO();
+    private final DentistDAO dentistDAO = new DentistDAO();
 
     @POST
     @Path("login")
@@ -44,13 +47,22 @@ public class AuthResource {
                 return ResponseUtil.unauthorized(gson.toJson(response));
             }
 
+            // For DENTIST role, resolve the matching dentist record by full name.
+            if ("DENTIST".equals(user.getRole())) {
+                user.setDentistId(dentistDAO.getDentistIdByFullName(user.getFullName()));
+            }
+
             LoginResponseDTO response = new LoginResponseDTO();
             response.setSuccess(true);
             response.setMessage("Login successful");
-            response.setToken("Bearer " + UUID.randomUUID().toString());
+            String rawToken = UUID.randomUUID().toString();
+            response.setToken("Bearer " + rawToken);
             response.setUsername(user.getUsername());
             response.setFullName(user.getFullName());
             response.setRole(user.getRole());
+            response.setDentistId(user.getDentistId());
+
+            TokenStore.put(rawToken, user);
 
             return ResponseUtil.success(response);
 

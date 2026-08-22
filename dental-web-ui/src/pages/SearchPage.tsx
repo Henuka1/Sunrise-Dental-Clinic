@@ -8,11 +8,14 @@ import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/EmptyState";
+import { useAuth } from "@/context/AuthContext";
 import { appointmentService } from "@/lib/services";
 import { formatDate, formatTime, getErrorMessage } from "@/lib/utils";
 import type { Appointment } from "@/types";
 
 export default function SearchPage() {
+  const { user } = useAuth();
+  const isDentist = user?.role === "DENTIST";
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -107,15 +110,17 @@ export default function SearchPage() {
                     <span className="text-slate-900">{formatTime(apt.appointmentTime)}</span>
                   </div>
                 </div>
-                <div className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
-                  <Link
-                    to="/billing"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:text-teal-700"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    View Bill
-                  </Link>
-                </div>
+                {!isDentist && (
+                  <div className="mt-4 border-t border-slate-100 pt-4">
+                    <Link
+                      to="/billing"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:text-teal-700"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      View Bill
+                    </Link>
+                  </div>
+                )}
               </Card>
             ))}
           </div>

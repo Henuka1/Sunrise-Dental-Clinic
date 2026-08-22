@@ -27,5 +27,6 @@ com\sunrise\dental\model\Dentist.class
 com\sunrise\dental\model\Patient.class
 com\sunrise\dental\util\ResponseUtil.class
 com\sunrise\dental\dao\UserDAO.class
+com\sunrise\dental\util\TokenStore.class
 com\sunrise\dental\dto\LoginResponseDTO.class
 com\sunrise\dental\resources\AuthResource.class

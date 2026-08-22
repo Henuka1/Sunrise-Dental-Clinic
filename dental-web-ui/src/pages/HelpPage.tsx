@@ -1,11 +1,12 @@
-import { CalendarPlus, Calendar, Search, DollarSign, FileBarChart, HelpCircle, Phone, Mail, MapPin } from "lucide-react";
+import { Calendar, Search, FileBarChart, HelpCircle, Phone, Mail, MapPin, CheckCircle, UserX, Users } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { useAuth } from "@/context/AuthContext";
 import { CLINIC_INFO } from "@/lib/constants";
 
-const helpTopics = [
+const adminHelpTopics = [
   {
-    icon: CalendarPlus,
+    icon: Calendar,
     title: "Creating a New Appointment",
     steps: [
       "Go to 'New Appointment' from the navigation menu.",
@@ -27,23 +28,13 @@ const helpTopics = [
     ],
   },
   {
-    icon: Search,
+    icon: HelpCircle,
     title: "Searching for Appointments",
     steps: [
       "Go to 'Search' from the navigation menu.",
       "Enter the patient's name or NIC number in the search field.",
       "Press Enter or click the Search button.",
       "Matching appointments will be displayed as cards with full details.",
-    ],
-  },
-  {
-    icon: DollarSign,
-    title: "Billing and Payments",
-    steps: [
-      "Go to 'Billing' to view all bills.",
-      "Filter bills by payment status (Paid, Pending, Partial).",
-      "The summary cards show total revenue and pending amounts.",
-      "Click 'Mark Paid' on any unpaid bill to update its payment status.",
     ],
   },
   {
@@ -58,7 +49,61 @@ const helpTopics = [
   },
 ];
 
+const dentistHelpTopics = [
+  {
+    icon: Calendar,
+    title: "Viewing Your Appointments",
+    steps: [
+      "Go to 'My Appointments' from the navigation menu.",
+      "You will only see appointments assigned to you.",
+      "Use the date and status filters to narrow down the list.",
+      "Click the checkmark icon to mark an appointment as completed.",
+      "Click the no-show icon (person with a slash) to mark a patient as a no-show.",
+    ],
+  },
+  {
+    icon: UserX,
+    title: "Updating Appointment Status",
+    steps: [
+      "Open 'My Appointments'.",
+      "For any SCHEDULED appointment, you can choose Mark Complete or Mark No-Show.",
+      "You cannot cancel appointments or edit their details — only Receptionist/Admin can.",
+    ],
+  },
+  {
+    icon: Users,
+    title: "Viewing Patient History",
+    steps: [
+      "Go to 'Patient History' from the navigation menu.",
+      "You will see patients you have treated.",
+      "Click 'View History' on any patient to see their past appointments with you.",
+    ],
+  },
+  {
+    icon: Search,
+    title: "Searching for Appointments",
+    steps: [
+      "Go to 'Search' from the navigation menu.",
+      "Enter the patient's name, NIC, or appointment number.",
+      "Only appointments assigned to you will be shown.",
+    ],
+  },
+  {
+    icon: FileBarChart,
+    title: "My Workload Report",
+    steps: [
+      "Go to 'My Reports' from the navigation menu.",
+      "Select a date range (From/To) and click Generate.",
+      "View your total appointments and individual appointment details.",
+    ],
+  },
+];
+
 export default function HelpPage() {
+  const { user } = useAuth();
+  const isDentist = user?.role === "DENTIST";
+  const helpTopics = isDentist ? dentistHelpTopics : adminHelpTopics;
+
   return (
     <div>
       <PageHeader

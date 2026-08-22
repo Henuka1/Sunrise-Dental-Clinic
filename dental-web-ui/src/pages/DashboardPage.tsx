@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
-import { Calendar, CheckCircle, XCircle, Clock, Plus, DollarSign, TrendingUp } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, Clock, Plus, DollarSign, TrendingUp, Users } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Spinner from "@/components/ui/Spinner";
 import ErrorState from "@/components/ErrorState";
+import { useAuth } from "@/context/AuthContext";
 import { appointmentService, billingService } from "@/lib/services";
 import { getTodayString, formatTime, formatCurrency } from "@/lib/utils";
 import type { Appointment, Bill } from "@/types";
@@ -16,9 +16,14 @@ interface Stats {
   scheduled: number;
   completed: number;
   cancelled: number;
+  pending: number;
+  patients: number;
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const isDentist = user?.role === "DENTIST";
+
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,24 +32,21 @@ export default function DashboardPage() {
   const load = async () => {
     setLoading(true);
     setError("");
-    const [aptResult, billResult] = await Promise.allSettled([
-      appointmentService.getAll({ date: getTodayString() }),
-      billingService.getAll(),
-    ]);
+    const aptPromise = appointmentService.getAll({ date: getTodayString() });
+    const [aptOutcome, billOutcome] = isDentist
+      ? await Promise.allSettled([aptPromise, Promise.reject(new Error("hidden"))])
+      : await Promise.allSettled([aptPromise, billingService.getAll()]);
 
-    if (aptResult.status === "fulfilled") {
-      setAppointments(aptResult.value.data.data || []);
+    if (aptOutcome.status === "fulfilled") {
+      setAppointments(aptOutcome.value.data.data || []);
     } else {
-      setError((aptResult.reason as Error).message || "Failed to load dashboard data");
+      setError((aptOutcome.reason as Error).message || "Failed to load dashboard data");
       setLoading(false);
       return;
     }
 
-    if (billResult.status === "fulfilled") {
-      setBills(billResult.value.data.data || []);
-    } else {
-      setBills([]);
-      toast.error("Billing summary could not be loaded. Appointments are still available.");
+    if (billOutcome.status === "fulfilled") {
+      setBills(billOutcome.value.data.data || []);
     }
 
     setLoading(false);
@@ -52,6 +54,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stats: Stats = {
@@ -59,6 +62,8 @@ export default function DashboardPage() {
     scheduled: appointments.filter((a) => a.status === "SCHEDULED").length,
     completed: appointments.filter((a) => a.status === "COMPLETED").length,
     cancelled: appointments.filter((a) => a.status === "CANCELLED").length,
+    pending: appointments.filter((a) => a.status === "SCHEDULED" || a.status === "NO_SHOW").length,
+    patients: new Set(appointments.map((a) => a.patientId)).size,
   };
 
   const todaysRevenue = bills
@@ -73,7 +78,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div>
-        <PageHeader title="Dashboard" description="Today's overview at a glance" />
+        <PageHeader title="Dashboard" description={isDentist ? "Welcome, Doctor" : "Today's overview at a glance"} />
         <div className="flex items-center justify-center py-20">
           <Spinner size="lg" />
         </div>
@@ -81,7 +86,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (error) {
+  if (error && !isDentist) {
     return (
       <div>
         <PageHeader title="Dashboard" description="Today's overview at a glance" />
@@ -90,26 +95,35 @@ export default function DashboardPage() {
     );
   }
 
-  const statCards = [
-    { label: "Today's Appointments", value: stats.total, icon: Calendar, color: "text-teal-600 bg-teal-50" },
-    { label: "Scheduled", value: stats.scheduled, icon: Clock, color: "text-blue-600 bg-blue-50" },
-    { label: "Completed", value: stats.completed, icon: CheckCircle, color: "text-green-600 bg-green-50" },
-    { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "text-red-600 bg-red-50" },
-  ];
+  const statCards = isDentist
+    ? [
+        { label: "My Today's Appointments", value: stats.total, icon: Calendar, color: "text-teal-600 bg-teal-50" },
+        { label: "My Pending", value: stats.pending, icon: Clock, color: "text-blue-600 bg-blue-50" },
+        { label: "My Patients Seen", value: stats.patients, icon: Users, color: "text-green-600 bg-green-50" },
+        { label: "My Upcoming", value: upcoming.length, icon: TrendingUp, color: "text-cyan-600 bg-cyan-50" },
+      ]
+    : [
+        { label: "Today's Appointments", value: stats.total, icon: Calendar, color: "text-teal-600 bg-teal-50" },
+        { label: "Scheduled", value: stats.scheduled, icon: Clock, color: "text-blue-600 bg-blue-50" },
+        { label: "Completed", value: stats.completed, icon: CheckCircle, color: "text-green-600 bg-green-50" },
+        { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "text-red-600 bg-red-50" },
+      ];
 
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        description="Today's overview at a glance"
+        description={isDentist ? "Your appointments at a glance" : "Today's overview at a glance"}
         action={
-          <Link
-            to="/appointments/new"
-            className="inline-flex h-11 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white transition-colors hover:bg-teal-700"
-          >
-            <Plus className="h-4 w-4" />
-            New Appointment
-          </Link>
+          !isDentist ? (
+            <Link
+              to="/appointments/new"
+              className="inline-flex h-11 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white transition-colors hover:bg-teal-700"
+            >
+              <Plus className="h-4 w-4" />
+              New Appointment
+            </Link>
+          ) : undefined
         }
       />
 
@@ -129,10 +143,12 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2" noPadding>
+      <div className={`mt-6 grid gap-6 ${isDentist ? "lg:grid-cols-1" : "lg:grid-cols-3"}`}>
+        <Card className={isDentist ? "" : "lg:col-span-2"} noPadding>
           <div className="border-b border-slate-200 px-6 py-4">
-            <h3 className="font-semibold text-slate-900">Upcoming Appointments</h3>
+            <h3 className="font-semibold text-slate-900">
+              {isDentist ? "My Today's Schedule" : "Upcoming Appointments"}
+            </h3>
           </div>
           {upcoming.length === 0 ? (
             <p className="px-6 py-12 text-center text-sm text-slate-500">
@@ -149,7 +165,8 @@ export default function DashboardPage() {
                     <div>
                       <p className="text-sm font-medium text-slate-900">{apt.patientName}</p>
                       <p className="text-xs text-slate-500">
-                        {apt.treatmentName} — Dr. {apt.dentistName}
+                        {apt.treatmentName}
+                        {!isDentist ? " — Dr. " + apt.dentistName : ""}
                       </p>
                     </div>
                   </div>
@@ -165,29 +182,31 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card>
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-50">
-              <DollarSign className="h-6 w-6 text-green-600" />
+        {!isDentist && (
+          <Card>
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-50">
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Total Revenue (Paid)</p>
+                <p className="text-2xl font-bold text-slate-900">{formatCurrency(todaysRevenue)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-slate-500">Total Revenue (Paid)</p>
-              <p className="text-2xl font-bold text-slate-900">{formatCurrency(todaysRevenue)}</p>
+            <div className="mt-6 rounded-lg bg-slate-50 p-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-slate-400" />
+                <p className="text-xs text-slate-500">Collected from {bills.filter(b => b.paymentStatus === "PAID").length} bills</p>
+              </div>
             </div>
-          </div>
-          <div className="mt-6 rounded-lg bg-slate-50 p-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-slate-400" />
-              <p className="text-xs text-slate-500">Collected from {bills.filter(b => b.paymentStatus === "PAID").length} bills</p>
-            </div>
-          </div>
-          <Link
-            to="/billing"
-            className="mt-4 block text-center text-sm font-medium text-teal-600 hover:text-teal-700"
-          >
-            View all bills →
-          </Link>
-        </Card>
+            <Link
+              to="/billing"
+              className="mt-4 block text-center text-sm font-medium text-teal-600 hover:text-teal-700"
+            >
+              View all bills →
+            </Link>
+          </Card>
+        )}
       </div>
     </div>
   );

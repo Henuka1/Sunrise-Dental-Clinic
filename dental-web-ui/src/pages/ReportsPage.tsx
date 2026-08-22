@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Calendar, TrendingUp, User, FileBarChart, Download } from "lucide-react";
+import { Calendar, TrendingUp, User, FileBarChart } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -9,6 +9,7 @@ import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/EmptyState";
+import { useAuth } from "@/context/AuthContext";
 import { reportService, dentistService } from "@/lib/services";
 import { formatDate, formatTime, formatCurrency, getTodayString, getErrorMessage } from "@/lib/utils";
 import type { Dentist, DailyReportData, RevenueReportData, DentistReportData } from "@/types";
@@ -16,7 +17,9 @@ import type { Dentist, DailyReportData, RevenueReportData, DentistReportData } f
 type ReportTab = "daily" | "revenue" | "dentist";
 
 export default function ReportsPage() {
-  const [tab, setTab] = useState<ReportTab>("daily");
+  const { user } = useAuth();
+  const isDentist = user?.role === "DENTIST";
+  const [tab, setTab] = useState<ReportTab>(isDentist ? "dentist" : "daily");
   const [dentists, setDentists] = useState<Dentist[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +30,7 @@ export default function ReportsPage() {
   const [revTo, setRevTo] = useState(getTodayString());
   const [revData, setRevData] = useState<RevenueReportData | null>(null);
 
-  const [dentistId, setDentistId] = useState("");
+  const [dentistId, setDentistId] = useState(isDentist ? String(user?.dentistId ?? "") : "");
   const [dentistFrom, setDentistFrom] = useState(getTodayString());
   const [dentistTo, setDentistTo] = useState(getTodayString());
   const [dentistData, setDentistData] = useState<DentistReportData | null>(null);
@@ -68,14 +71,15 @@ export default function ReportsPage() {
   };
 
   const runDentist = async () => {
-    if (!dentistId) {
+    const id = dentistId || String(user?.dentistId ?? "");
+    if (!id) {
       toast.error("Please select a dentist");
       return;
     }
     setLoading(true);
     setDentistData(null);
     try {
-      const res = await reportService.dentist(parseInt(dentistId, 10), dentistFrom, dentistTo);
+      const res = await reportService.dentist(parseInt(id, 10), dentistFrom, dentistTo);
       setDentistData(res.data.data);
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -84,15 +88,17 @@ export default function ReportsPage() {
     }
   };
 
-  const tabs: { id: ReportTab; label: string; icon: typeof Calendar }[] = [
-    { id: "daily", label: "Daily Report", icon: Calendar },
-    { id: "revenue", label: "Revenue Report", icon: TrendingUp },
-    { id: "dentist", label: "Dentist Report", icon: User },
-  ];
+  const tabs: { id: ReportTab; label: string; icon: typeof Calendar }[] = isDentist
+    ? [{ id: "dentist", label: "My Workload Report", icon: User }]
+    : [
+        { id: "daily", label: "Daily Report", icon: Calendar },
+        { id: "revenue", label: "Revenue Report", icon: TrendingUp },
+        { id: "dentist", label: "Dentist Report", icon: User },
+      ];
 
   return (
     <div>
-      <PageHeader title="Reports" description="Generate and view clinic reports" />
+      <PageHeader title="Reports" description={isDentist ? "View your personal workload report" : "Generate and view clinic reports"} />
 
       <div className="mb-6 flex gap-2">
         {tabs.map((t) => (
@@ -226,18 +232,20 @@ export default function ReportsPage() {
       {tab === "dentist" && (
         <div className="space-y-6">
           <Card>
-            <CardHeader title="Dentist Report" description="View appointments for a specific dentist" />
+            <CardHeader title={isDentist ? "My Workload Report" : "Dentist Report"} description={isDentist ? "View your appointments within a date range" : "View appointments for a specific dentist"} />
             <div className="mt-4 flex flex-wrap items-end gap-3">
-              <Select
-                label="Dentist"
-                placeholder="Select dentist"
-                value={dentistId}
-                onChange={(e) => setDentistId(e.target.value)}
-                options={dentists.map((d) => ({
-                  value: d.dentistId,
-                  label: `Dr. ${d.dentistName} — ${d.specialization}`,
-                }))}
-              />
+              {!isDentist && (
+                <Select
+                  label="Dentist"
+                  placeholder="Select dentist"
+                  value={dentistId}
+                  onChange={(e) => setDentistId(e.target.value)}
+                  options={dentists.map((d) => ({
+                    value: d.dentistId,
+                    label: `Dr. ${d.dentistName} — ${d.specialization}`,
+                  }))}
+                />
+              )}
               <Input
                 label="From Date"
                 type="date"

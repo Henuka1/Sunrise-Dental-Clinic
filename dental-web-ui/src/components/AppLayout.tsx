@@ -10,6 +10,7 @@ import {
   BarChart3,
   LifeBuoy,
   Stethoscope,
+  History,
   User as UserIcon,
   LogOut,
   Menu,
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard": LayoutDashboard,
   "/patients/new": UserRoundPlus,
+  "/patients": History,
   "/appointments/new": CalendarPlus,
   "/appointments": CalendarCheck2,
   "/search": Search,
@@ -53,7 +55,7 @@ export default function AppLayout() {
       </div>
 
       <nav className="space-y-1">
-        {NAV_LINKS.map((link) => {
+        {(NAV_LINKS[user?.role ?? "ADMIN"] || NAV_LINKS.ADMIN).map((link) => {
           const Icon = NAV_ICONS[link.to] ?? LayoutDashboard;
           return (
             <NavLink

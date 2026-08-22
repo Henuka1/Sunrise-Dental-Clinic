@@ -31,6 +31,24 @@ public class DentistDAO {
         return dentists;
     }
 
+    public int getDentistIdByFullName(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) {
+            return 0;
+        }
+        String sql = "SELECT dentist_id FROM dentists WHERE dentists.dentist_name = ? LIMIT 1";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, fullName.trim());
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("dentist_id");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
     public Dentist getDentistById(int id) {
         String sql = "SELECT * FROM dentists WHERE dentist_id = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();

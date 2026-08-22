@@ -9,6 +9,7 @@ export interface User {
   username: string;
   fullName: string;
   role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
+  dentistId?: number;
 }
 
 export interface Patient {
@@ -84,6 +85,7 @@ export interface LoginResponse {
   username: string;
   fullName: string;
   role: string;
+  dentistId?: number;
 }
 
 export interface DailyReportData {

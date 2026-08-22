@@ -4,6 +4,8 @@
  */
 package com.sunrise.dental.filter;
 
+import com.sunrise.dental.model.User;
+import com.sunrise.dental.util.TokenStore;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -55,6 +57,50 @@ public class AuthenticationFilter implements Filter {
             return;
         }
 
+        // Resolve the logged-in user from the token (if registered in this server's session store).
+        String rawToken = authHeader.substring("Bearer ".length());
+        User user = TokenStore.get(rawToken);
+        req.setAttribute("authenticatedUser", user);
+
+        // Role-based restriction for DENTIST: forbid endpoints the dentist must not access.
+        if (user != null && "DENTIST".equals(user.getRole())) {
+            if (isDentistForbidden(req.getMethod(), path)) {
+                res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                res.setContentType("application/json");
+                res.getWriter().write("{\"success\":false,\"message\":\"Access denied: Dentist role is not allowed to perform this action\"}");
+                return;
+            }
+        }
+
         chain.doFilter(request, response);
+    }
+
+    private boolean isDentistForbidden(String method, String path) {
+        String m = method == null ? "" : method.toUpperCase();
+        String p = path == null ? "" : path;
+
+        // Create / edit patients
+        if (("POST".equals(m) || "PUT".equals(m) || "DELETE".equals(m)) && p.startsWith("/api/patients")) {
+            return true;
+        }
+        // Create or cancel appointments
+        if ("POST".equals(m) && p.startsWith("/api/appointments")) {
+            return true;
+        }
+        // Dentist cannot cancel appointments (DELETE /appointments/{id} or PUT /appointments/{id}/cancel)
+        if (("DELETE".equals(m) || "PUT".equals(m)) && p.startsWith("/api/appointments") && p.contains("/cancel")) {
+            return true;
+        }
+        // All bill operations
+        if (p.startsWith("/api/bills")) {
+            return true;
+        }
+        // Clinic-wide / sensitive reports
+        if (p.startsWith("/api/reports/daily")
+                || p.startsWith("/api/reports/revenue")
+                || p.startsWith("/api/reports/pending-bills")) {
+            return true;
+        }
+        return false;
     }
 }

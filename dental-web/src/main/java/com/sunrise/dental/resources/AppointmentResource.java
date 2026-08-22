@@ -9,9 +9,12 @@ import com.sunrise.dental.dao.AppointmentDAO;
 import com.sunrise.dental.dto.ApiResponseDTO;
 import com.sunrise.dental.factory.BillFactory;
 import com.sunrise.dental.model.Appointment;
+import com.sunrise.dental.model.User;
 import com.sunrise.dental.util.ResponseUtil;
 import com.sunrise.dental.util.ValidationUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
@@ -24,35 +27,62 @@ public class AppointmentResource {
     private final Gson gson = new Gson();
     private final AppointmentDAO appointmentDAO = new AppointmentDAO();
 
+    private User getLoggedInUser(HttpServletRequest request) {
+        if (request == null) return null;
+        Object attr = request.getAttribute("authenticatedUser");
+        return (attr instanceof User) ? (User) attr : null;
+    }
+
+    private boolean isDentist(User user) {
+        return user != null && "DENTIST".equals(user.getRole());
+    }
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllAppointments(
+            @Context HttpServletRequest request,
             @QueryParam("date") String date,
             @QueryParam("status") String status) {
-        List<Appointment> appointments = appointmentDAO.getAppointments(date, status);
+        User loggedIn = getLoggedInUser(request);
+        List<Appointment> appointments;
+        if (isDentist(loggedIn)) {
+            appointments = appointmentDAO.getAppointmentsByDentistScoped(loggedIn.getDentistId(), date, status);
+        } else {
+            appointments = appointmentDAO.getAppointments(date, status);
+        }
         return ResponseUtil.success(new ApiResponseDTO(true, "Appointments retrieved", appointments));
     }
 
     @GET
     @Path("search")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response searchAppointments(@QueryParam("q") String query) {
+    public Response searchAppointments(@Context HttpServletRequest request, @QueryParam("q") String query) {
         if (query == null || query.trim().isEmpty()) {
             return ResponseUtil.badRequest("Search query is required");
         }
-        List<Appointment> appointments = appointmentDAO.searchAppointments(query.trim());
+        User dentist = getLoggedInUser(request);
+        List<Appointment> appointments;
+        if (isDentist(dentist)) {
+            appointments = appointmentDAO.searchAppointmentsByDentist(dentist.getDentistId(), query.trim());
+        } else {
+            appointments = appointmentDAO.searchAppointments(query.trim());
+        }
         return ResponseUtil.success(new ApiResponseDTO(true, "Appointments retrieved", appointments));
     }
 
     @GET
     @Path("number/{number}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getAppointmentByNumber(@PathParam("number") String number) {
+    public Response getAppointmentByNumber(@Context HttpServletRequest request, @PathParam("number") String number) {
         if (!ValidationUtil.isValidAppointmentNumber(number)) {
             return ResponseUtil.badRequest("Invalid appointment number format (APT-XXXXX)");
         }
         Appointment apt = appointmentDAO.getAppointmentByNumber(number);
         if (apt == null) {
+            return ResponseUtil.notFound("Appointment not found");
+        }
+        User loggedIn = getLoggedInUser(request);
+        if (isDentist(loggedIn) && loggedIn.getDentistId() != apt.getDentistId()) {
             return ResponseUtil.notFound("Appointment not found");
         }
         return ResponseUtil.success(new ApiResponseDTO(true, "Appointment found", apt));
@@ -61,9 +91,13 @@ public class AppointmentResource {
     @GET
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getAppointmentById(@PathParam("id") int id) {
+    public Response getAppointmentById(@Context HttpServletRequest request, @PathParam("id") int id) {
         Appointment apt = appointmentDAO.getAppointmentById(id);
         if (apt == null) {
+            return ResponseUtil.notFound("Appointment not found");
+        }
+        User dentist = getLoggedInUser(request);
+        if (isDentist(dentist) && dentist.getDentistId() != apt.getDentistId()) {
             return ResponseUtil.notFound("Appointment not found");
         }
         return ResponseUtil.success(new ApiResponseDTO(true, "Appointment found", apt));
@@ -72,7 +106,10 @@ public class AppointmentResource {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response createAppointment(String json) {
+    public Response createAppointment(@Context HttpServletRequest request, String json) {
+        if (isDentist(getLoggedInUser(request))) {
+            return ResponseUtil.forbidden("Dentist role cannot create appointments");
+        }
         try {
             Appointment apt = gson.fromJson(json, Appointment.class);
 
@@ -118,7 +155,11 @@ public class AppointmentResource {
     @Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response updateAppointment(@PathParam("id") int id, String json) {
+    public Response updateAppointment(@Context HttpServletRequest request, @PathParam("id") int id, String json) {
+        if (isDentist(getLoggedInUser(request))) {
+            // Dentist must not edit appointment details (only status via dedicated endpoints).
+            return ResponseUtil.forbidden("Dentist role can only update appointment status");
+        }
         try {
             Appointment apt = gson.fromJson(json, Appointment.class);
             apt.setAppointmentId(id);
@@ -137,7 +178,10 @@ public class AppointmentResource {
     @DELETE
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response cancelAppointment(@PathParam("id") int id) {
+    public Response cancelAppointment(@Context HttpServletRequest request, @PathParam("id") int id) {
+        if (isDentist(getLoggedInUser(request))) {
+            return ResponseUtil.forbidden("Dentist role cannot cancel appointments");
+        }
         boolean cancelled = appointmentDAO.cancelAppointment(id);
         if (!cancelled) {
             return ResponseUtil.badRequest("Failed to cancel appointment");
@@ -148,20 +192,24 @@ public class AppointmentResource {
     @PUT
     @Path("{id}/cancel")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response cancelAppointmentAlias(@PathParam("id") int id) {
-        return cancelAppointment(id);
+    public Response cancelAppointmentAlias(@Context HttpServletRequest request, @PathParam("id") int id) {
+        return cancelAppointment(request, id);
     }
 
     @PUT
     @Path("{id}/complete")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response completeAppointment(@PathParam("id") int id, String json) {
+    public Response completeAppointment(@Context HttpServletRequest request, @PathParam("id") int id, String json) {
+        User dentist = getLoggedInUser(request);
+        if (isDentist(dentist) && !ownsAppointment(dentist, id)) {
+            return ResponseUtil.notFound("Appointment not found");
+        }
         try {
-            Appointment request = json == null || json.trim().isEmpty()
+            Appointment requestJson = json == null || json.trim().isEmpty()
                     ? new Appointment()
                     : gson.fromJson(json, Appointment.class);
-            boolean completed = appointmentDAO.updateAppointmentStatus(id, "COMPLETED", request.getNotes());
+            boolean completed = appointmentDAO.updateAppointmentStatus(id, "COMPLETED", requestJson.getNotes());
             if (!completed) {
                 return ResponseUtil.badRequest("Failed to complete appointment");
             }
@@ -171,11 +219,46 @@ public class AppointmentResource {
         }
     }
 
+    @PUT
+    @Path("{id}/no-show")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response noShowAppointment(@Context HttpServletRequest request, @PathParam("id") int id, String json) {
+        User dentist = getLoggedInUser(request);
+        if (isDentist(dentist) && !ownsAppointment(dentist, id)) {
+            return ResponseUtil.notFound("Appointment not found");
+        }
+        try {
+            Appointment requestJson = json == null || json.trim().isEmpty()
+                    ? new Appointment()
+                    : gson.fromJson(json, Appointment.class);
+            boolean updated = appointmentDAO.updateAppointmentStatus(id, "NO_SHOW", requestJson.getNotes());
+            if (!updated) {
+                return ResponseUtil.badRequest("Failed to mark appointment as no-show");
+            }
+            return ResponseUtil.success(new ApiResponseDTO(true, "Appointment marked as no-show", null));
+        } catch (Exception e) {
+            return ResponseUtil.serverError("Error: " + e.getMessage());
+        }
+    }
+
+    private boolean ownsAppointment(User dentist, int appointmentId) {
+        if (dentist == null || dentist.getDentistId() <= 0) return false;
+        Appointment apt = appointmentDAO.getAppointmentById(appointmentId);
+        return apt != null && apt.getDentistId() == dentist.getDentistId();
+    }
+
     @GET
     @Path("date/{date}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getAppointmentsByDate(@PathParam("date") String date) {
-        List<Appointment> appointments = appointmentDAO.getAppointmentsByDate(date);
+    public Response getAppointmentsByDate(@Context HttpServletRequest request, @PathParam("date") String date) {
+        User dentist = getLoggedInUser(request);
+        List<Appointment> appointments;
+        if (isDentist(dentist)) {
+            appointments = appointmentDAO.getAppointmentsByDentistScoped(dentist.getDentistId(), date, null);
+        } else {
+            appointments = appointmentDAO.getAppointmentsByDate(date);
+        }
         return ResponseUtil.success(new ApiResponseDTO(true, "Appointments retrieved", appointments));
     }
 }

@@ -322,6 +322,72 @@ public class AppointmentDAO {
         return appointments;
     }
 
+    public List<Appointment> getAppointmentsByDentistScoped(int dentistId, String date, String status) {
+        List<Appointment> appointments = new ArrayList<>();
+        if (dentistId <= 0) {
+            return appointments;
+        }
+        StringBuilder sql = new StringBuilder(
+                "SELECT a.*, p.patient_name, d.dentist_name, t.treatment_name " +
+                "FROM appointments a " +
+                "JOIN patients p ON a.patient_id = p.patient_id " +
+                "JOIN dentists d ON a.dentist_id = d.dentist_id " +
+                "JOIN treatments t ON a.treatment_id = t.treatment_id " +
+                "WHERE a.dentist_id = ?");
+        if (date != null && !date.isEmpty()) {
+            sql.append(" AND a.appointment_date = ?");
+        }
+        if (status != null && !status.isEmpty()) {
+            sql.append(" AND a.status = ?");
+        }
+        sql.append(" ORDER BY a.appointment_date DESC, a.appointment_time DESC");
+
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            int idx = 1;
+            ps.setInt(idx++, dentistId);
+            if (date != null && !date.isEmpty()) ps.setString(idx++, date);
+            if (status != null && !status.isEmpty()) ps.setString(idx++, status);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                appointments.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return appointments;
+    }
+
+    public List<Appointment> searchAppointmentsByDentist(int dentistId, String query) {
+        List<Appointment> appointments = new ArrayList<>();
+        if (dentistId <= 0) {
+            return appointments;
+        }
+        String sql = "SELECT a.*, p.patient_name, d.dentist_name, t.treatment_name " +
+                     "FROM appointments a " +
+                     "JOIN patients p ON a.patient_id = p.patient_id " +
+                     "JOIN dentists d ON a.dentist_id = d.dentist_id " +
+                     "JOIN treatments t ON a.treatment_id = t.treatment_id " +
+                     "WHERE a.dentist_id = ? AND (LOWER(p.patient_name) LIKE ? " +
+                     "OR p.contact_number LIKE ? OR LOWER(a.appointment_number) LIKE ?) " +
+                     "ORDER BY a.appointment_date DESC, a.appointment_time DESC";
+        String like = "%" + query.toLowerCase() + "%";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, dentistId);
+            ps.setString(2, like);
+            ps.setString(3, "%" + query + "%");
+            ps.setString(4, like);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                appointments.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return appointments;
+    }
+
     private Appointment mapResultSet(ResultSet rs) throws SQLException {
         Appointment a = new Appointment();
         a.setAppointmentId(rs.getInt("appointment_id"));
