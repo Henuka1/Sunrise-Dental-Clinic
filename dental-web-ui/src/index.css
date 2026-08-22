@@ -22,3 +22,70 @@
 		letter-spacing: -0.02em;
 	}
 }
+
+/* ============================ PRINT / PDF ============================ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  /* Only the active report is printed */
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Never print interactive controls */
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+
+  .print-area .no-print {
+    display: none !important;
+  }
+
+  /* Keep chart colours in the printed / saved PDF */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-area table {
+    font-size: 10px;
+  }
+
+  .print-area td,
+  .print-area th {
+    padding: 5px 6px !important;
+  }
+
+  .print-area * {
+    box-shadow: none !important;
+  }
+
+  .print-area tr,
+  .print-area .rounded-2xl {
+    break-inside: avoid;
+  }
+}
