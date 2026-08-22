@@ -20,20 +20,57 @@ import java.util.List;
  */
 public class UserDAO {
 
+    // Tracks whether the users.permissions column exists. Auto-migrated on first
+    // connection so login keeps working even if the DDL wasn't run manually.
+    private static boolean permissionsReady = false;
+
+    private void ensurePermissionsColumn(Connection conn) {
+        if (permissionsReady) return;
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions VARCHAR(255) DEFAULT NULL AFTER role"
+            );
+            permissionsReady = true;
+        } catch (SQLException e) {
+            // Column may already exist under a different state, or ALTER unsupported.
+            // Fall back to queries that ignore the column (permissions disabled).
+            permissionsReady = false;
+            e.printStackTrace();
+        }
+    }
+
+    private String userSelectColumns() {
+        return permissionsReady
+                ? "user_id, username, full_name, role, permissions"
+                : "user_id, username, full_name, role";
+    }
+
+    private String userSelectColumnsWithCreated() {
+        return permissionsReady
+                ? "user_id, username, full_name, role, permissions, created_at"
+                : "user_id, username, full_name, role, created_at";
+    }
+
     public User authenticate(String username, String password) {
-        String sql = "SELECT user_id, username, full_name, role FROM users WHERE username = ? AND password = ?";
-        try (Connection conn = DBConnection.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
-            ps.setString(2, password);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return new User(
-                    rs.getInt("user_id"),
-                    rs.getString("username"),
-                    rs.getString("full_name"),
-                    rs.getString("role")
-                );
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            ensurePermissionsColumn(conn);
+            String sql = "SELECT " + userSelectColumns() + " FROM users WHERE username = ? AND password = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, username);
+                ps.setString(2, password);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    User user = new User(
+                        rs.getInt("user_id"),
+                        rs.getString("username"),
+                        rs.getString("full_name"),
+                        rs.getString("role")
+                    );
+                    if (permissionsReady) {
+                        user.setPermissions(rs.getString("permissions"));
+                    }
+                    return user;
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -42,18 +79,24 @@ public class UserDAO {
     }
 
     public User getUserByUsername(String username) {
-        String sql = "SELECT user_id, username, full_name, role FROM users WHERE username = ?";
-        try (Connection conn = DBConnection.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return new User(
-                    rs.getInt("user_id"),
-                    rs.getString("username"),
-                    rs.getString("full_name"),
-                    rs.getString("role")
-                );
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            ensurePermissionsColumn(conn);
+            String sql = "SELECT " + userSelectColumns() + " FROM users WHERE username = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, username);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    User user = new User(
+                        rs.getInt("user_id"),
+                        rs.getString("username"),
+                        rs.getString("full_name"),
+                        rs.getString("role")
+                    );
+                    if (permissionsReady) {
+                        user.setPermissions(rs.getString("permissions"));
+                    }
+                    return user;
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -63,12 +106,14 @@ public class UserDAO {
 
     public List<User> getAllUsers() {
         List<User> users = new ArrayList<>();
-        String sql = "SELECT user_id, username, full_name, role, created_at FROM users ORDER BY user_id";
-        try (Connection conn = DBConnection.getInstance().getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                users.add(mapUser(rs));
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            ensurePermissionsColumn(conn);
+            String sql = "SELECT " + userSelectColumnsWithCreated() + " FROM users ORDER BY user_id";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(sql)) {
+                while (rs.next()) {
+                    users.add(mapUser(rs));
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -77,13 +122,15 @@ public class UserDAO {
     }
 
     public User getUserById(int id) {
-        String sql = "SELECT user_id, username, full_name, role, created_at FROM users WHERE user_id = ?";
-        try (Connection conn = DBConnection.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return mapUser(rs);
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            ensurePermissionsColumn(conn);
+            String sql = "SELECT " + userSelectColumnsWithCreated() + " FROM users WHERE user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, id);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    return mapUser(rs);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -140,11 +187,30 @@ public class UserDAO {
     }
 
     public boolean deleteUser(int id) {
-        String sql = "DELETE FROM users WHERE user_id = ?";
-        try (Connection conn = DBConnection.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            return ps.executeUpdate() > 0;
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            String sql = "DELETE FROM users WHERE user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, id);
+                return ps.executeUpdate() > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean updatePermissions(int id, String permissions) {
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            ensurePermissionsColumn(conn);
+            if (!permissionsReady) {
+                return false;
+            }
+            String sql = "UPDATE users SET permissions = ? WHERE user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, permissions);
+                ps.setInt(2, id);
+                return ps.executeUpdate() > 0;
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -158,6 +224,9 @@ public class UserDAO {
                 rs.getString("full_name"),
                 rs.getString("role")
         );
+        if (permissionsReady) {
+            user.setPermissions(rs.getString("permissions"));
+        }
         user.setCreatedAt(rs.getString("created_at"));
         return user;
     }

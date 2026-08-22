@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, CheckCircle, XCircle, Clock, Plus, DollarSign, TrendingUp, Users } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, Clock, Plus, DollarSign, TrendingUp, Users, ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -210,7 +210,7 @@ export default function DashboardPage() {
       </div>
 
       {!isDentist && user?.role === "ADMIN" && (
-        <div className="mt-6">
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <Card className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-teal-600 text-white shadow-lg shadow-teal-600/20">
@@ -228,6 +228,26 @@ export default function DashboardPage() {
               className="inline-flex h-11 shrink-0 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white transition-colors hover:bg-teal-700"
             >
               Manage Users
+            </Link>
+          </Card>
+
+          <Card className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-600 text-white shadow-lg shadow-cyan-600/20">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">User Access Control</p>
+                <p className="text-xs text-slate-500">
+                  Grant or revoke module access for each user
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/users/access"
+              className="inline-flex h-11 shrink-0 items-center gap-2 rounded-lg bg-cyan-600 px-5 text-sm font-medium text-white transition-colors hover:bg-cyan-700"
+            >
+              Configure Access
             </Link>
           </Card>
         </div>

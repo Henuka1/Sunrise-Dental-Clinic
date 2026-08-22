@@ -11,6 +11,7 @@ import {
   LifeBuoy,
   Stethoscope,
   History,
+  ShieldCheck,
   User as UserIcon,
   LogOut,
   Menu,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { NAV_LINKS, CLINIC_INFO } from "@/lib/constants";
+import { getEffectivePermissions, PATH_MODULE } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -30,6 +32,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/billing": ReceiptText,
   "/reports": BarChart3,
   "/users": UserRoundPlus,
+  "/users/access": ShieldCheck,
   "/help": LifeBuoy,
 };
 
@@ -56,7 +59,15 @@ export default function AppLayout() {
       </div>
 
       <nav className="space-y-1">
-        {(NAV_LINKS[user?.role ?? "ADMIN"] || NAV_LINKS.ADMIN).map((link) => {
+        {(NAV_LINKS[user?.role ?? "ADMIN"] || NAV_LINKS.ADMIN)
+          .filter(
+            (link) =>
+              user?.role === "ADMIN" ||
+              getEffectivePermissions(user).includes(
+                PATH_MODULE[link.to] ?? ("dashboard" as const)
+              )
+          )
+          .map((link) => {
           const Icon = NAV_ICONS[link.to] ?? LayoutDashboard;
           return (
             <NavLink

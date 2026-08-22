@@ -12,6 +12,7 @@ import com.sunrise.dental.dto.LoginResponseDTO;
 import com.sunrise.dental.model.User;
 import com.sunrise.dental.util.ResponseUtil;
 import com.sunrise.dental.util.TokenStore;
+import com.sunrise.dental.util.PermissionUtil;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -61,7 +62,7 @@ public class AuthResource {
             response.setFullName(user.getFullName());
             response.setRole(user.getRole());
             response.setDentistId(user.getDentistId());
-
+            response.setPermissions(PermissionUtil.resolvePermissions(user.getRole(), user.getPermissions()));
             TokenStore.put(rawToken, user);
 
             return ResponseUtil.success(response);

@@ -20,6 +20,7 @@ import Spinner from "@/components/ui/Spinner";
 import ErrorState from "@/components/ErrorState";
 import EmptyState from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { useAuth } from "@/context/AuthContext";
 import { userService } from "@/lib/services";
 import { getErrorMessage, formatDate } from "@/lib/utils";
 import type { ManagedUser, UserPayload } from "@/types";
@@ -73,6 +74,8 @@ function roleBadgeClass(role: string): string {
 }
 
 export default function UserManagementPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -177,14 +180,26 @@ export default function UserManagementPage() {
     <div>
       <PageHeader
         title="User Management"
-        description="Create, edit and remove system users. Access is restricted to administrators."
+        description={
+          isAdmin
+            ? "Create, edit and remove system users."
+            : "View system users (read-only — only administrators can manage them)."
+        }
         action={
-          <Button onClick={openAdd}>
-            <UserRoundPlus className="h-4 w-4" />
-            Add User
-          </Button>
+          isAdmin && (
+            <Button onClick={openAdd}>
+              <UserRoundPlus className="h-4 w-4" />
+              Add User
+            </Button>
+          )
         }
       />
+
+      {!isAdmin && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          You have view-only access to user management. Only administrators can add, edit or delete users.
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
@@ -198,10 +213,12 @@ export default function UserManagementPage() {
           title="No users yet"
           description="Add your first system user to get started."
           action={
-            <Button onClick={openAdd}>
-              <UserRoundPlus className="h-4 w-4" />
-              Add User
-            </Button>
+            isAdmin && (
+              <Button onClick={openAdd}>
+                <UserRoundPlus className="h-4 w-4" />
+                Add User
+              </Button>
+            )
           }
         />
       ) : (
@@ -243,14 +260,20 @@ export default function UserManagementPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                          Edit
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => setToDelete(user)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </Button>
+                        {isAdmin ? (
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                              Edit
+                            </Button>
+                            <Button variant="danger" size="sm" onClick={() => setToDelete(user)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Delete
+                            </Button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-slate-400">View only</span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -279,12 +302,18 @@ export default function UserManagementPage() {
                     {user.role}
                   </span>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => setToDelete(user)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {isAdmin ? (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="danger" size="sm" onClick={() => setToDelete(user)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-slate-400">View only</span>
+                    )}
                   </div>
                 </div>
               </div>

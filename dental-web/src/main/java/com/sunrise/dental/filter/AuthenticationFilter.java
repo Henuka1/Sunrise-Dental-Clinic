@@ -72,12 +72,18 @@ public class AuthenticationFilter implements Filter {
             }
         }
 
-        // Role-based restriction: RECEPTIONIST / DENTIST are NOT allowed to manage users.
+        // Role-based restriction: non-ADMIN users may READ the user/access pages
+        // (only if they were granted the "users" module — enforced in UserResource),
+        // but only ADMIN can create/edit/delete users or change access.
         if (user != null && !"ADMIN".equals(user.getRole()) && path.startsWith("/api/users")) {
-            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            res.setContentType("application/json");
-            res.getWriter().write("{\"success\":false,\"message\":\"Access denied: Only ADMIN can manage users\"}");
-            return;
+            String m = req.getMethod() == null ? "" : req.getMethod().toUpperCase();
+            boolean mutating = "POST".equals(m) || "PUT".equals(m) || "DELETE".equals(m);
+            if (mutating) {
+                res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                res.setContentType("application/json");
+                res.getWriter().write("{\"success\":false,\"message\":\"Access denied: Only ADMIN can manage users\"}");
+                return;
+            }
         }
 
         chain.doFilter(request, response);

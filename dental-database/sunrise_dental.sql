@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS users (
         'DENTIST'
     ) NOT NULL DEFAULT 'RECEPTIONIST',
 
+    -- Comma-separated module keys this user is allowed to access.
+    -- NULL = use role defaults (see DEFAULT_PERMISSIONS in backend).
+    permissions VARCHAR(255) DEFAULT NULL,
+
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -568,7 +572,17 @@ VALUES
 
 
 -- ============================================================
--- STEP 14: VERIFY DATA
+-- STEP 14: MIGRATION FOR EXISTING DATABASES
+-- Adds the permissions column if it does not already exist.
+-- ============================================================
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS permissions VARCHAR(255) DEFAULT NULL
+    AFTER role;
+
+
+-- ============================================================
+-- STEP 15: VERIFY DATA
 -- ============================================================
 
 SELECT * FROM users;

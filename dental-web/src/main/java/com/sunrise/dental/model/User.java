@@ -16,6 +16,7 @@ public class User {
     private String role;
     private int dentistId;
     private String createdAt;
+    private String permissions;
 
     public User() {}
 
@@ -40,4 +41,6 @@ public class User {
     public void setDentistId(int dentistId) { this.dentistId = dentistId; }
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public String getPermissions() { return permissions; }
+    public void setPermissions(String permissions) { this.permissions = permissions; }
 }

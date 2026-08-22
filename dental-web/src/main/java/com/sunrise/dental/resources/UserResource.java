@@ -10,6 +10,7 @@ import com.sunrise.dental.dto.ApiResponseDTO;
 import com.sunrise.dental.model.User;
 import com.sunrise.dental.util.ResponseUtil;
 import com.sunrise.dental.util.ValidationUtil;
+import com.sunrise.dental.util.PermissionUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
@@ -43,11 +44,20 @@ public class UserResource {
         return null;
     }
 
+    // Users with the "users" module can READ the user/access pages.
+    private boolean canViewUsers(HttpServletRequest request) {
+        User loggedIn = getLoggedInUser(request);
+        if (loggedIn == null) return false;
+        return PermissionUtil.resolvePermissions(loggedIn.getRole(), loggedIn.getPermissions())
+                .contains("users");
+    }
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllUsers(@Context HttpServletRequest request) {
-        Response denied = requireAdmin(request);
-        if (denied != null) return denied;
+        if (!canViewUsers(request)) {
+            return ResponseUtil.forbidden("Access denied: You do not have access to user management");
+        }
         List<User> users = userDAO.getAllUsers();
         return ResponseUtil.success(new ApiResponseDTO(true, "Users retrieved", users));
     }
@@ -56,8 +66,9 @@ public class UserResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getUser(@Context HttpServletRequest request, @PathParam("id") int id) {
-        Response denied = requireAdmin(request);
-        if (denied != null) return denied;
+        if (!canViewUsers(request)) {
+            return ResponseUtil.forbidden("Access denied: You do not have access to user management");
+        }
         User user = userDAO.getUserById(id);
         if (user == null) {
             return ResponseUtil.notFound("User not found");
@@ -164,9 +175,54 @@ public class UserResource {
         }
     }
 
+    @PUT
+    @Path("{id}/access")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response updateAccess(@Context HttpServletRequest request, @PathParam("id") int id, String json) {
+        Response denied = requireAdmin(request);
+        if (denied != null) return denied;
+        try {
+            User existing = userDAO.getUserById(id);
+            if (existing == null) {
+                return ResponseUtil.notFound("User not found");
+            }
+
+            AccessRequestDTO dto = gson.fromJson(json, AccessRequestDTO.class);
+            if (dto == null || dto.getPermissions() == null) {
+                return ResponseUtil.badRequest("permissions list is required");
+            }
+
+            // Validate that only known module keys are used.
+            List<String> sanitized = new java.util.ArrayList<>();
+            for (String key : dto.getPermissions()) {
+                if (key != null && PermissionUtil.ALL_MODULES.contains(key.trim())) {
+                    sanitized.add(key.trim());
+                }
+            }
+
+            String csv = PermissionUtil.toCsv(sanitized);
+            boolean updated = userDAO.updatePermissions(id, csv);
+            if (!updated) {
+                return ResponseUtil.badRequest("Failed to update access");
+            }
+
+            return ResponseUtil.success(new ApiResponseDTO(true, "Access updated successfully",
+                    PermissionUtil.resolvePermissions(existing.getRole(), csv)));
+        } catch (Exception e) {
+            return ResponseUtil.serverError("Error: " + e.getMessage());
+        }
+    }
+
     private boolean isValidRole(String role) {
         return "ADMIN".equals(role)
                 || "RECEPTIONIST".equals(role)
                 || "DENTIST".equals(role);
+    }
+
+    private static class AccessRequestDTO {
+        private List<String> permissions;
+        public List<String> getPermissions() { return permissions; }
+        public void setPermissions(List<String> permissions) { this.permissions = permissions; }
     }
 }

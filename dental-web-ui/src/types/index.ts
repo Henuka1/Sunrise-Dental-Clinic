@@ -10,6 +10,7 @@ export interface User {
   fullName: string;
   role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
   dentistId?: number;
+  permissions?: string[];
 }
 
 export interface Patient {
@@ -86,6 +87,7 @@ export interface LoginResponse {
   fullName: string;
   role: string;
   dentistId?: number;
+  permissions?: string[];
 }
 
 export interface ManagedUser {
@@ -94,6 +96,7 @@ export interface ManagedUser {
   fullName: string;
   role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
   createdAt?: string;
+  permissions?: string;
 }
 
 export interface UserPayload {

@@ -16,6 +16,7 @@ public class LoginResponseDTO {
     private String fullName;
     private String role;
     private int dentistId;
+    private java.util.List<String> permissions;
 
     public LoginResponseDTO() {}
 
@@ -33,4 +34,6 @@ public class LoginResponseDTO {
     public void setRole(String role) { this.role = role; }
     public int getDentistId() { return dentistId; }
     public void setDentistId(int dentistId) { this.dentistId = dentistId; }
+    public java.util.List<String> getPermissions() { return permissions; }
+    public void setPermissions(java.util.List<String> permissions) { this.permissions = permissions; }
 }

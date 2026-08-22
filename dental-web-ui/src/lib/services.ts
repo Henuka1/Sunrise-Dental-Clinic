@@ -28,6 +28,8 @@ export const userService = {
   update: (id: number, data: Partial<UserPayload>) =>
     api.put<ApiResponse<ManagedUser>>(`/users/${id}`, data),
   remove: (id: number) => api.delete<ApiResponse<null>>(`/users/${id}`),
+  updateAccess: (id: number, permissions: string[]) =>
+    api.put<ApiResponse<string[]>>(`/users/${id}/access`, { permissions }),
 };
 
 export const patientService = {
