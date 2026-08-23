@@ -17,6 +17,7 @@ public class User {
     private int dentistId;
     private String createdAt;
     private String permissions;
+    private boolean isActive;
 
     public User() {}
 
@@ -43,4 +44,7 @@ public class User {
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
     public String getPermissions() { return permissions; }
     public void setPermissions(String permissions) { this.permissions = permissions; }
+    public boolean isActive() { return isActive; }
+    public void setActive(boolean active) { isActive = active; }
 }
+

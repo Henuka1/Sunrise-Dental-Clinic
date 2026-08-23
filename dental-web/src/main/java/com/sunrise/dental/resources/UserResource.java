@@ -214,6 +214,45 @@ public class UserResource {
         }
     }
 
+    @PUT
+    @Path("{id}/active")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response updateActiveStatus(@Context HttpServletRequest request, @PathParam("id") int id, String json) {
+        Response denied = requireAdmin(request);
+        if (denied != null) return denied;
+        try {
+            User existing = userDAO.getUserById(id);
+            if (existing == null) {
+                return ResponseUtil.notFound("User not found");
+            }
+
+            User loggedIn = getLoggedInUser(request);
+            if (loggedIn != null && loggedIn.getUserId() == id) {
+                return ResponseUtil.badRequest("You cannot deactivate your own account");
+            }
+
+            ActiveRequestDTO dto = gson.fromJson(json, ActiveRequestDTO.class);
+            if (dto == null) {
+                return ResponseUtil.badRequest("Request body is required");
+            }
+
+            boolean updated = userDAO.updateActiveStatus(id, dto.isActive());
+            if (!updated) {
+                return ResponseUtil.badRequest("Failed to update active status");
+            }
+
+            existing.setActive(dto.isActive());
+            return ResponseUtil.success(new ApiResponseDTO(true,
+                dto.isActive()
+                    ? "User activated successfully"
+                    : "User deactivated successfully",
+                existing));
+        } catch (Exception e) {
+            return ResponseUtil.serverError("Error: " + e.getMessage());
+        }
+    }
+
     private boolean isValidRole(String role) {
         return "ADMIN".equals(role)
                 || "RECEPTIONIST".equals(role)
@@ -224,5 +263,11 @@ public class UserResource {
         private List<String> permissions;
         public List<String> getPermissions() { return permissions; }
         public void setPermissions(List<String> permissions) { this.permissions = permissions; }
+    }
+
+    private static class ActiveRequestDTO {
+        private boolean active;
+        public boolean isActive() { return active; }
+        public void setActive(boolean active) { this.active = active; }
     }
 }

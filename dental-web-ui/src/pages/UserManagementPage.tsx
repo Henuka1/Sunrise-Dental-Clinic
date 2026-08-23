@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   Shield,
   Stethoscope,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -76,6 +78,7 @@ function roleBadgeClass(role: string): string {
 export default function UserManagementPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
+  const currentUserId = user?.userId ?? -1;
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -84,6 +87,8 @@ export default function UserManagementPage() {
   const [submitting, setSubmitting] = useState(false);
   const [toDelete, setToDelete] = useState<ManagedUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [toToggle, setToToggle] = useState<ManagedUser | null>(null);
+  const [toggling, setToggling] = useState(false);
 
   const {
     register,
@@ -176,6 +181,22 @@ export default function UserManagementPage() {
     }
   };
 
+  const confirmToggle = async () => {
+    if (!toToggle) return;
+    setToggling(true);
+    try {
+      const nextActive = !toToggle.isActive;
+      const res = await userService.toggleActive(toToggle.userId, nextActive);
+      toast.success(res.data.message || (nextActive ? "User activated" : "User deactivated"));
+      setToToggle(null);
+      await load();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setToggling(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -229,13 +250,20 @@ export default function UserManagementPage() {
                 <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] uppercase tracking-wide text-slate-500">
                   <th className="px-6 py-3 font-semibold">User</th>
                   <th className="px-6 py-3 font-semibold">Role</th>
+                  <th className="px-6 py-3 font-semibold">Status</th>
                   <th className="px-6 py-3 font-semibold">Created</th>
                   <th className="px-6 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {users.map((user) => (
-                  <tr key={user.userId} className="transition-colors hover:bg-slate-50/60">
+                  <tr
+                    key={user.userId}
+                    className={
+                      "transition-colors hover:bg-slate-50/60" +
+                      (user.isActive === false ? " opacity-60" : "")
+                    }
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <RoleIcon role={user.role} />
@@ -255,6 +283,24 @@ export default function UserManagementPage() {
                         {user.role}
                       </span>
                     </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
+                          (user.isActive === false
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : "border-green-200 bg-green-50 text-green-700")
+                        }
+                      >
+                        <span
+                          className={
+                            "h-1.5 w-1.5 rounded-full " +
+                            (user.isActive === false ? "bg-red-500" : "bg-green-500")
+                          }
+                        />
+                        {user.isActive === false ? "Inactive" : "Active"}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-slate-600">
                       {user.createdAt ? formatDate(user.createdAt) : "-"}
                     </td>
@@ -262,6 +308,19 @@ export default function UserManagementPage() {
                       <div className="flex justify-end gap-2">
                         {isAdmin ? (
                           <>
+                            <Button
+                              variant={user.isActive === false ? "primary" : "outline"}
+                              size="sm"
+                              onClick={() => setToToggle(user)}
+                              disabled={user.userId === currentUserId}
+                            >
+                              {user.isActive === false ? (
+                                <PlayCircle className="h-3.5 w-3.5" />
+                              ) : (
+                                <PauseCircle className="h-3.5 w-3.5" />
+                              )}
+                              {user.isActive === false ? "Activate" : "Deactivate"}
+                            </Button>
                             <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
                               <Pencil className="h-3.5 w-3.5" />
                               Edit
@@ -284,7 +343,12 @@ export default function UserManagementPage() {
 
           <div className="divide-y divide-slate-100 md:hidden">
             {users.map((user) => (
-              <div key={user.userId} className="space-y-3 px-5 py-4">
+              <div
+                key={user.userId}
+                className={
+                  "space-y-3 px-5 py-4" + (user.isActive === false ? " opacity-60" : "")
+                }
+              >
                 <div className="flex items-center gap-3">
                   <RoleIcon role={user.role} />
                   <div className="min-w-0">
@@ -292,18 +356,48 @@ export default function UserManagementPage() {
                     <p className="truncate text-xs text-slate-500">@{user.username}</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span
-                    className={
-                      "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
-                      roleBadgeClass(user.role)
-                    }
-                  >
-                    {user.role}
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={
+                        "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
+                        roleBadgeClass(user.role)
+                      }
+                    >
+                      {user.role}
+                    </span>
+                    <span
+                      className={
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
+                        (user.isActive === false
+                          ? "border-red-200 bg-red-50 text-red-700"
+                          : "border-green-200 bg-green-50 text-green-700")
+                      }
+                    >
+                      <span
+                        className={
+                          "h-1.5 w-1.5 rounded-full " +
+                          (user.isActive === false ? "bg-red-500" : "bg-green-500")
+                        }
+                      />
+                      {user.isActive === false ? "Inactive" : "Active"}
+                    </span>
+                  </div>
                   <div className="flex gap-2">
                     {isAdmin ? (
                       <>
+                        <Button
+                          variant={user.isActive === false ? "primary" : "outline"}
+                          size="sm"
+                          onClick={() => setToToggle(user)}
+                          disabled={user.userId === currentUserId}
+                        >
+                          {user.isActive === false ? (
+                            <PlayCircle className="h-3.5 w-3.5" />
+                          ) : (
+                            <PauseCircle className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -395,6 +489,20 @@ export default function UserManagementPage() {
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setToDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={!!toToggle}
+        title={toToggle?.isActive === false ? "Activate user" : "Deactivate user"}
+        message={
+          toToggle?.isActive === false
+            ? `Are you sure you want to activate ${toToggle?.fullName} (@${toToggle?.username})? They will be able to log in again.`
+            : `Are you sure you want to deactivate ${toToggle?.fullName} (@${toToggle?.username})? They will no longer be able to log in.`
+        }
+        confirmLabel={toggling ? "Saving..." : toToggle?.isActive === false ? "Activate" : "Deactivate"}
+        variant={toToggle?.isActive === false ? "primary" : "danger"}
+        onConfirm={confirmToggle}
+        onCancel={() => setToToggle(null)}
       />
     </div>
   );

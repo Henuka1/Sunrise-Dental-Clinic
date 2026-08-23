@@ -30,6 +30,8 @@ export const userService = {
   remove: (id: number) => api.delete<ApiResponse<null>>(`/users/${id}`),
   updateAccess: (id: number, permissions: string[]) =>
     api.put<ApiResponse<string[]>>(`/users/${id}/access`, { permissions }),
+  toggleActive: (id: number, isActive: boolean) =>
+    api.put<ApiResponse<ManagedUser>>(`/users/${id}/active`, { active: isActive }),
 };
 
 export const patientService = {

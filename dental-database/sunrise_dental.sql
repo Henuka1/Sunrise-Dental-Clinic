@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS users (
     -- NULL = use role defaults (see DEFAULT_PERMISSIONS in backend).
     permissions VARCHAR(255) DEFAULT NULL,
 
+    -- Soft-delete / account status flag (TRUE = active, FALSE = suspended).
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -579,6 +582,15 @@ VALUES
 ALTER TABLE users
     ADD COLUMN IF NOT EXISTS permissions VARCHAR(255) DEFAULT NULL
     AFTER role;
+
+-- ============================================================
+-- STEP 14b: MIGRATION — Add the is_active column for accounts
+-- that were created before the column existed. Existing users
+-- are treated as active so nobody gets locked out.
+-- ============================================================
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 
 
 -- ============================================================

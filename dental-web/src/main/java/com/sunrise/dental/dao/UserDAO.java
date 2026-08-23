@@ -20,8 +20,9 @@ import java.util.List;
  */
 public class UserDAO {
 
-    // Tracks whether the users.permissions column exists. Auto-migrated on first
-    // connection so login keeps working even if the DDL wasn't run manually.
+    // Tracks whether the auto-migration (permissions + is_active columns) has run.
+    // Auto-migrated on first connection so login keeps working even if the DDL
+    // wasn't run manually.
     private static boolean permissionsReady = false;
 
     private void ensurePermissionsColumn(Connection conn) {
@@ -30,10 +31,13 @@ public class UserDAO {
             stmt.executeUpdate(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions VARCHAR(255) DEFAULT NULL AFTER role"
             );
+            stmt.executeUpdate(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"
+            );
             permissionsReady = true;
         } catch (SQLException e) {
             // Column may already exist under a different state, or ALTER unsupported.
-            // Fall back to queries that ignore the column (permissions disabled).
+            // Fall back to queries that ignore the extra columns.
             permissionsReady = false;
             e.printStackTrace();
         }
@@ -41,13 +45,13 @@ public class UserDAO {
 
     private String userSelectColumns() {
         return permissionsReady
-                ? "user_id, username, full_name, role, permissions"
+                ? "user_id, username, full_name, role, permissions, is_active"
                 : "user_id, username, full_name, role";
     }
 
     private String userSelectColumnsWithCreated() {
         return permissionsReady
-                ? "user_id, username, full_name, role, permissions, created_at"
+                ? "user_id, username, full_name, role, permissions, is_active, created_at"
                 : "user_id, username, full_name, role, created_at";
     }
 
@@ -55,6 +59,9 @@ public class UserDAO {
         try (Connection conn = DBConnection.getInstance().getConnection()) {
             ensurePermissionsColumn(conn);
             String sql = "SELECT " + userSelectColumns() + " FROM users WHERE username = ? AND password = ?";
+            if (permissionsReady) {
+                sql += " AND is_active = TRUE";
+            }
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, username);
                 ps.setString(2, password);
@@ -68,6 +75,7 @@ public class UserDAO {
                     );
                     if (permissionsReady) {
                         user.setPermissions(rs.getString("permissions"));
+                        user.setActive(rs.getBoolean("is_active"));
                     }
                     return user;
                 }
@@ -94,6 +102,7 @@ public class UserDAO {
                     );
                     if (permissionsReady) {
                         user.setPermissions(rs.getString("permissions"));
+                        user.setActive(rs.getBoolean("is_active"));
                     }
                     return user;
                 }
@@ -217,6 +226,24 @@ public class UserDAO {
         return false;
     }
 
+    public boolean updateActiveStatus(int id, boolean isActive) {
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            ensurePermissionsColumn(conn);
+            if (!permissionsReady) {
+                return false;
+            }
+            String sql = "UPDATE users SET is_active = ? WHERE user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setBoolean(1, isActive);
+                ps.setInt(2, id);
+                return ps.executeUpdate() > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     private User mapUser(ResultSet rs) throws SQLException {
         User user = new User(
                 rs.getInt("user_id"),
@@ -226,6 +253,7 @@ public class UserDAO {
         );
         if (permissionsReady) {
             user.setPermissions(rs.getString("permissions"));
+            user.setActive(rs.getBoolean("is_active"));
         }
         user.setCreatedAt(rs.getString("created_at"));
         return user;

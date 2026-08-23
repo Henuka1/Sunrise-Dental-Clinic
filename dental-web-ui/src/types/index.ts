@@ -97,6 +97,7 @@ export interface ManagedUser {
   role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
   createdAt?: string;
   permissions?: string;
+  isActive?: boolean;
 }
 
 export interface UserPayload {
