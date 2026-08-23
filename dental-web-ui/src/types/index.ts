@@ -107,6 +107,11 @@ export interface UserPayload {
   role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
 }
 
+export interface ProfileUpdateRequest {
+  fullName: string;
+  newPassword?: string;
+}
+
 export interface DailyReportData {
   date: string;
   appointments: Appointment[];

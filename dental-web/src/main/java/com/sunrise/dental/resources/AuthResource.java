@@ -9,11 +9,16 @@ import com.sunrise.dental.dao.DentistDAO;
 import com.sunrise.dental.dao.UserDAO;
 import com.sunrise.dental.dto.LoginRequestDTO;
 import com.sunrise.dental.dto.LoginResponseDTO;
+import com.sunrise.dental.dto.ProfileUpdateRequestDTO;
+import com.sunrise.dental.dto.ApiResponseDTO;
 import com.sunrise.dental.model.User;
 import com.sunrise.dental.util.ResponseUtil;
 import com.sunrise.dental.util.TokenStore;
 import com.sunrise.dental.util.PermissionUtil;
+import com.sunrise.dental.util.ValidationUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.UUID;
@@ -82,5 +87,66 @@ public class AuthResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response loginGet() {
         return ResponseUtil.success("{\"message\":\"Use POST method with JSON body: {\\\"username\\\":\\\"admin\\\",\\\"password\\\":\\\"admin123\\\"}\"}");
+    }
+
+    private User getLoggedInUser(HttpServletRequest request) {
+        if (request == null) return null;
+        Object attr = request.getAttribute("authenticatedUser");
+        return (attr instanceof User) ? (User) attr : null;
+    }
+
+    /**
+     * Allow the logged-in user to update their own profile:
+     * full name and optionally their password.
+     */
+    @PUT
+    @Path("profile")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response updateProfile(@Context HttpServletRequest request, String json) {
+        User loggedIn = getLoggedInUser(request);
+        if (loggedIn == null) {
+            return ResponseUtil.unauthorized("Unauthorized - Please log in");
+        }
+        try {
+            ProfileUpdateRequestDTO dto = gson.fromJson(json, ProfileUpdateRequestDTO.class);
+            if (dto == null) {
+                return ResponseUtil.badRequest("Request body is required");
+            }
+            if (ValidationUtil.isNullOrEmpty(dto.getFullName())) {
+                return ResponseUtil.badRequest("Full name is required");
+            }
+            String newPassword = dto.getNewPassword() == null ? null : dto.getNewPassword().trim();
+            if (newPassword != null && !newPassword.isEmpty() && newPassword.length() < 4) {
+                return ResponseUtil.badRequest("Password must be at least 4 characters");
+            }
+
+            boolean updated = userDAO.updateOwnProfile(
+                    loggedIn.getUserId(),
+                    dto.getFullName().trim(),
+                    newPassword);
+
+            if (!updated) {
+                return ResponseUtil.badRequest("Failed to update profile");
+            }
+
+            // Reflect the change in the in-memory session (same object reference).
+            loggedIn.setFullName(dto.getFullName().trim());
+            loggedIn.setPassword(null);
+
+            User updatedUser = new User(
+                    loggedIn.getUserId(),
+                    loggedIn.getUsername(),
+                    loggedIn.getFullName(),
+                    loggedIn.getRole());
+            updatedUser.setDentistId(loggedIn.getDentistId());
+            updatedUser.setPermissions(loggedIn.getPermissions());
+            updatedUser.setActive(loggedIn.isActive());
+
+            return ResponseUtil.success(new ApiResponseDTO(true,
+                    "Profile updated successfully", updatedUser));
+        } catch (Exception e) {
+            return ResponseUtil.serverError("Profile update error: " + e.getMessage());
+        }
     }
 }

@@ -1,16 +1,25 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
 import {
   UserRound,
   AtSign,
   BadgeCheck,
   ShieldCheck,
-  Stethoscope,
   FileText,
   Hash,
+  UserCog,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
+import { authService } from "@/lib/services";
 import { MODULES, getEffectivePermissions } from "@/lib/permissions";
+import { getErrorMessage } from "@/lib/utils";
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Administrator",
@@ -18,8 +27,31 @@ const ROLE_LABEL: Record<string, string> = {
   DENTIST: "Dentist",
 };
 
+const profileSchema = z
+  .object({
+    fullName: z.string().min(1, "Full name is required"),
+    newPassword: z.string().optional(),
+  })
+  .refine(
+    (data) => !data.newPassword || data.newPassword.length >= 4,
+    { message: "Password must be at least 4 characters", path: ["newPassword"] }
+  );
+
+type ProfileFormData = z.infer<typeof profileSchema>;
+
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const [saving, setSaving] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: { fullName: user?.fullName ?? "", newPassword: "" },
+  });
 
   const permissions = getEffectivePermissions(user);
   const roleLabel = user?.role ? ROLE_LABEL[user.role] : "";
@@ -27,11 +59,33 @@ export default function ProfilePage() {
     .map((key) => MODULES.find((m) => m.key === key)?.label ?? key)
     .sort();
 
+  const onSubmitProfile = async (data: ProfileFormData) => {
+    try {
+      setSaving(true);
+      const res = await authService.updateProfile({
+        fullName: data.fullName.trim(),
+        ...(data.newPassword && data.newPassword.trim()
+          ? { newPassword: data.newPassword.trim() }
+          : {}),
+      });
+      const updated = res.data.data;
+      if (user) {
+        updateUser({ ...user, fullName: updated.fullName });
+      }
+      toast.success("Profile updated successfully");
+      reset({ fullName: updated.fullName, newPassword: "" });
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader
         title="My Profile"
-        description="Your account details and access permissions"
+        description="View and manage your account details"
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -74,6 +128,41 @@ export default function ProfilePage() {
         </div>
 
         <div className="lg:col-span-2 space-y-4">
+          <Card noPadding>
+            <div className="p-6">
+              <CardHeader
+                title="Edit Profile"
+                description="Update your display name and password"
+              />
+            </div>
+            <form
+              onSubmit={handleSubmit(onSubmitProfile)}
+              className="border-t border-slate-200/80 p-6 space-y-5"
+            >
+              <Input
+                label="Full Name"
+                required
+                placeholder="e.g. Nimal Perera"
+                error={errors.fullName?.message}
+                {...register("fullName")}
+              />
+              <Input
+                label="New Password (leave blank to keep current)"
+                type="password"
+                placeholder="Enter new password"
+                error={errors.newPassword?.message}
+                {...register("newPassword")}
+              />
+              <Button
+                type="submit"
+                className="w-full"
+                loading={saving}
+              >
+                Save Profile
+              </Button>
+            </form>
+          </Card>
+
           <Card>
             <CardHeader
               title="Account Information"
@@ -97,15 +186,15 @@ export default function ProfilePage() {
           <Card className="border-slate-200 bg-slate-50/60">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
-                <Stethoscope className="h-5 w-5" />
+                <UserCog className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-900">
-                  Need to change something?
+                  Need help managing your account?
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  To update your details, change your password, or reset access, please
-                  contact the system administrator.
+                  To reset your access or if you need further assistance, please contact
+                  the system administrator.
                 </p>
               </div>
             </div>

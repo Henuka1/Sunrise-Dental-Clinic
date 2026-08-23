@@ -9,6 +9,7 @@ com\sunrise\dental\util\ValidationUtil.class
 com\sunrise\dental\resources\PatientResource.class
 com\sunrise\dental\model\Treatment.class
 com\sunrise\dental\factory\BillFactory.class
+com\sunrise\dental\dto\ProfileUpdateRequestDTO.class
 com\sunrise\dental\filter\AuthenticationFilter.class
 com\sunrise\dental\dao\TreatmentDAO.class
 com\sunrise\dental\resources\ReportResource.class

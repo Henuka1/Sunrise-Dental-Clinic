@@ -14,11 +14,14 @@ import type {
   PatientReportData,
   ManagedUser,
   UserPayload,
+  ProfileUpdateRequest,
 } from "@/types";
 
 export const authService = {
   login: (data: LoginRequest) => api.post<LoginResponse>("/auth/login", data),
   logout: () => api.post<ApiResponse<null>>("/auth/logout"),
+  updateProfile: (data: ProfileUpdateRequest) =>
+    api.put<ApiResponse<ManagedUser>>("/auth/profile", data),
 };
 
 export const userService = {

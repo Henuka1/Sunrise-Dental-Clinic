@@ -8,6 +8,7 @@ C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\d
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dto\ApiResponseDTO.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dto\LoginRequestDTO.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dto\LoginResponseDTO.java
+C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dto\ProfileUpdateRequestDTO.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\factory\BillFactory.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\filter\AuthenticationFilter.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\filter\CorsFilter.java

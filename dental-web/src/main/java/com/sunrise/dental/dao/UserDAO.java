@@ -199,6 +199,30 @@ public class UserDAO {
         return false;
     }
 
+    public boolean updateOwnProfile(int userId, String fullName, String newPassword) {
+        String sql;
+        boolean hasNewPassword = newPassword != null && !newPassword.trim().isEmpty();
+        if (hasNewPassword) {
+            sql = "UPDATE users SET full_name = ?, password = ? WHERE user_id = ?";
+        } else {
+            sql = "UPDATE users SET full_name = ? WHERE user_id = ?";
+        }
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, fullName);
+            if (hasNewPassword) {
+                ps.setString(2, newPassword);
+                ps.setInt(3, userId);
+            } else {
+                ps.setInt(2, userId);
+            }
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public boolean deleteUser(int id) {
         try (Connection conn = DBConnection.getInstance().getConnection()) {
             String sql = "DELETE FROM users WHERE user_id = ?";
