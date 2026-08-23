@@ -108,6 +108,7 @@ export interface UserPayload {
 }
 
 export interface ProfileUpdateRequest {
+  username: string;
   fullName: string;
   newPassword?: string;
 }

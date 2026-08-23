@@ -199,22 +199,23 @@ public class UserDAO {
         return false;
     }
 
-    public boolean updateOwnProfile(int userId, String fullName, String newPassword) {
+    public boolean updateOwnProfile(int userId, String username, String fullName, String newPassword) {
         String sql;
         boolean hasNewPassword = newPassword != null && !newPassword.trim().isEmpty();
         if (hasNewPassword) {
-            sql = "UPDATE users SET full_name = ?, password = ? WHERE user_id = ?";
+            sql = "UPDATE users SET username = ?, full_name = ?, password = ? WHERE user_id = ?";
         } else {
-            sql = "UPDATE users SET full_name = ? WHERE user_id = ?";
+            sql = "UPDATE users SET username = ?, full_name = ? WHERE user_id = ?";
         }
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, fullName);
+            ps.setString(1, username);
+            ps.setString(2, fullName);
             if (hasNewPassword) {
-                ps.setString(2, newPassword);
-                ps.setInt(3, userId);
+                ps.setString(3, newPassword);
+                ps.setInt(4, userId);
             } else {
-                ps.setInt(2, userId);
+                ps.setInt(3, userId);
             }
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {

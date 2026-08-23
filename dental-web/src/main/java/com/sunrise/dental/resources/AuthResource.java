@@ -113,8 +113,20 @@ public class AuthResource {
             if (dto == null) {
                 return ResponseUtil.badRequest("Request body is required");
             }
+            if (ValidationUtil.isNullOrEmpty(dto.getUsername())) {
+                return ResponseUtil.badRequest("Username is required");
+            }
             if (ValidationUtil.isNullOrEmpty(dto.getFullName())) {
                 return ResponseUtil.badRequest("Full name is required");
+            }
+            String newUsername = dto.getUsername().trim();
+            if (loggedIn.getUserId() != 0) {
+                // Ensure the username is not already used by another account.
+                // Uniqueness is enforced only when we can identify the caller.
+                User nameOwner = userDAO.getUserByUsername(newUsername);
+                if (nameOwner != null && nameOwner.getUserId() != loggedIn.getUserId()) {
+                    return ResponseUtil.badRequest("Username already exists");
+                }
             }
             String newPassword = dto.getNewPassword() == null ? null : dto.getNewPassword().trim();
             if (newPassword != null && !newPassword.isEmpty() && newPassword.length() < 4) {
@@ -123,6 +135,7 @@ public class AuthResource {
 
             boolean updated = userDAO.updateOwnProfile(
                     loggedIn.getUserId(),
+                    newUsername,
                     dto.getFullName().trim(),
                     newPassword);
 
@@ -131,6 +144,7 @@ public class AuthResource {
             }
 
             // Reflect the change in the in-memory session (same object reference).
+            loggedIn.setUsername(newUsername);
             loggedIn.setFullName(dto.getFullName().trim());
             loggedIn.setPassword(null);
 

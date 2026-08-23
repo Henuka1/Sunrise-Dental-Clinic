@@ -29,6 +29,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 const profileSchema = z
   .object({
+    username: z.string().min(1, "Username is required"),
     fullName: z.string().min(1, "Full name is required"),
     newPassword: z.string().optional(),
   })
@@ -50,7 +51,11 @@ export default function ProfilePage() {
     formState: { errors },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { fullName: user?.fullName ?? "", newPassword: "" },
+    defaultValues: {
+      username: user?.username ?? "",
+      fullName: user?.fullName ?? "",
+      newPassword: "",
+    },
   });
 
   const permissions = getEffectivePermissions(user);
@@ -63,6 +68,7 @@ export default function ProfilePage() {
     try {
       setSaving(true);
       const res = await authService.updateProfile({
+        username: data.username.trim(),
         fullName: data.fullName.trim(),
         ...(data.newPassword && data.newPassword.trim()
           ? { newPassword: data.newPassword.trim() }
@@ -70,10 +76,18 @@ export default function ProfilePage() {
       });
       const updated = res.data.data;
       if (user) {
-        updateUser({ ...user, fullName: updated.fullName });
+        updateUser({
+          ...user,
+          username: updated.username,
+          fullName: updated.fullName,
+        });
       }
       toast.success("Profile updated successfully");
-      reset({ fullName: updated.fullName, newPassword: "" });
+      reset({
+        username: updated.username,
+        fullName: updated.fullName,
+        newPassword: "",
+      });
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -132,13 +146,20 @@ export default function ProfilePage() {
             <div className="p-6">
               <CardHeader
                 title="Edit Profile"
-                description="Update your display name and password"
+                description="Update your username, display name and password"
               />
             </div>
             <form
               onSubmit={handleSubmit(onSubmitProfile)}
               className="border-t border-slate-200/80 p-6 space-y-5"
             >
+              <Input
+                label="Username"
+                required
+                placeholder="login username"
+                error={errors.username?.message}
+                {...register("username")}
+              />
               <Input
                 label="Full Name"
                 required
