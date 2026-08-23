@@ -48,6 +48,11 @@ public class AuthResource {
                 return ResponseUtil.unauthorized(gson.toJson(response));
             }
 
+            // Account exists with correct credentials but has been deactivated.
+            if (!user.isActive()) {
+                return ResponseUtil.forbidden("Your account has been deactivated. Please contact the administrator.");
+            }
+
             // For DENTIST role, resolve the matching dentist record by full name.
             if ("DENTIST".equals(user.getRole())) {
                 user.setDentistId(dentistDAO.getDentistIdByFullName(user.getFullName()));

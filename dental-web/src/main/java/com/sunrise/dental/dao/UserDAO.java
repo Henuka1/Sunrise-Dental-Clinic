@@ -59,9 +59,9 @@ public class UserDAO {
         try (Connection conn = DBConnection.getInstance().getConnection()) {
             ensurePermissionsColumn(conn);
             String sql = "SELECT " + userSelectColumns() + " FROM users WHERE username = ? AND password = ?";
-            if (permissionsReady) {
-                sql += " AND is_active = TRUE";
-            }
+            // Intentionally DO NOT filter by is_active here. Auth succeeds based on
+            // credentials alone so the login layer can report a clear
+            // "account deactivated" message for inactive accounts.
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, username);
                 ps.setString(2, password);
@@ -76,6 +76,10 @@ public class UserDAO {
                     if (permissionsReady) {
                         user.setPermissions(rs.getString("permissions"));
                         user.setActive(rs.getBoolean("is_active"));
+                    } else {
+                        // The is_active column does not exist in this database.
+                        // Treat every account as active so nobody gets locked out.
+                        user.setActive(true);
                     }
                     return user;
                 }
