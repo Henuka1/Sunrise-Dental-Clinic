@@ -18,6 +18,8 @@ public class User {
     private String createdAt;
     private String permissions;
     private boolean isActive;
+    private String contactNumber;
+    private String email;
 
     public User() {}
 
@@ -46,5 +48,9 @@ public class User {
     public void setPermissions(String permissions) { this.permissions = permissions; }
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
+    public String getContactNumber() { return contactNumber; }
+    public void setContactNumber(String contactNumber) { this.contactNumber = contactNumber; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 }
 

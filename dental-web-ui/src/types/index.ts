@@ -98,6 +98,8 @@ export interface ManagedUser {
   createdAt?: string;
   permissions?: string;
   isActive?: boolean;
+  contactNumber?: string;
+  email?: string;
 }
 
 export interface UserPayload {
@@ -105,6 +107,8 @@ export interface UserPayload {
   password?: string;
   fullName: string;
   role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
+  contactNumber?: string;
+  email?: string;
 }
 
 export interface ProfileUpdateRequest {

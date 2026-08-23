@@ -33,6 +33,15 @@ const userSchema = z
     fullName: z.string().min(1, "Full name is required"),
     role: z.enum(["ADMIN", "RECEPTIONIST", "DENTIST"]),
     password: z.string().optional(),
+    contactNumber: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine(
+        (val) => !val || /^[0-9+\-\s]+$/.test(val),
+        { message: "Invalid contact number" }
+      ),
+    email: z.string().email("Invalid email").optional().or(z.literal("")),
   })
   .refine(
     (data) => !data.password || data.password.length >= 4,
@@ -119,7 +128,14 @@ export default function UserManagementPage() {
 
   const openAdd = () => {
     setEditing(null);
-    reset({ username: "", fullName: "", role: "RECEPTIONIST", password: "" });
+    reset({
+      username: "",
+      fullName: "",
+      role: "RECEPTIONIST",
+      password: "",
+      contactNumber: "",
+      email: "",
+    });
     setModalOpen(true);
   };
 
@@ -130,6 +146,8 @@ export default function UserManagementPage() {
       fullName: user.fullName,
       role: user.role,
       password: "",
+      contactNumber: user.contactNumber ?? "",
+      email: user.email ?? "",
     });
     setModalOpen(true);
   };
@@ -142,6 +160,8 @@ export default function UserManagementPage() {
           username: data.username,
           fullName: data.fullName,
           role: data.role,
+          contactNumber: data.contactNumber || undefined,
+          email: data.email || undefined,
         };
         if (data.password && data.password.length >= 4) {
           payload.password = data.password;
@@ -154,6 +174,8 @@ export default function UserManagementPage() {
           fullName: data.fullName,
           role: data.role,
           password: data.password || "",
+          contactNumber: data.contactNumber || undefined,
+          email: data.email || undefined,
         });
         toast.success(res.data.message || "User added successfully");
       }
@@ -270,6 +292,11 @@ export default function UserManagementPage() {
                         <div>
                           <p className="font-medium text-slate-900">{user.fullName}</p>
                           <p className="text-xs text-slate-500">@{user.username}</p>
+                          {(user.contactNumber || user.email) && (
+                            <p className="text-xs text-slate-500">
+                              {[user.contactNumber, user.email].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -354,6 +381,11 @@ export default function UserManagementPage() {
                   <div className="min-w-0">
                     <p className="truncate font-medium text-slate-900">{user.fullName}</p>
                     <p className="truncate text-xs text-slate-500">@{user.username}</p>
+                    {(user.contactNumber || user.email) && (
+                      <p className="truncate text-xs text-slate-500">
+                        {[user.contactNumber, user.email].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -452,6 +484,19 @@ export default function UserManagementPage() {
                 disabled={!!editing}
                 error={errors.username?.message}
                 {...register("username")}
+              />
+              <Input
+                label="Contact Number"
+                placeholder="e.g. 0771234567"
+                error={errors.contactNumber?.message}
+                {...register("contactNumber")}
+              />
+              <Input
+                label="Email"
+                type="email"
+                placeholder="optional"
+                error={errors.email?.message}
+                {...register("email")}
               />
               <Select
                 label="Role"

@@ -102,6 +102,17 @@ public class UserResource {
             }
 
             user.setUsername(user.getUsername().trim());
+            user.setFullName(user.getFullName().trim());
+            if (!ValidationUtil.isNullOrEmpty(user.getContactNumber())
+                    && !ValidationUtil.isValidPhone(user.getContactNumber().trim())) {
+                return ResponseUtil.badRequest("Invalid contact number");
+            }
+            if (!ValidationUtil.isNullOrEmpty(user.getEmail())
+                    && !ValidationUtil.isValidEmail(user.getEmail().trim())) {
+                return ResponseUtil.badRequest("Invalid email address");
+            }
+            user.setContactNumber(ValidationUtil.isNullOrEmpty(user.getContactNumber()) ? null : user.getContactNumber().trim());
+            user.setEmail(ValidationUtil.isNullOrEmpty(user.getEmail()) ? null : user.getEmail().trim());
             boolean added = userDAO.addUser(user);
             if (!added) {
                 return ResponseUtil.badRequest("Failed to add user");
@@ -137,6 +148,16 @@ public class UserResource {
             if (!isValidRole(user.getRole())) {
                 return ResponseUtil.badRequest("Role must be ADMIN, RECEPTIONIST or DENTIST");
             }
+            if (!ValidationUtil.isNullOrEmpty(user.getContactNumber())
+                    && !ValidationUtil.isValidPhone(user.getContactNumber().trim())) {
+                return ResponseUtil.badRequest("Invalid contact number");
+            }
+            if (!ValidationUtil.isNullOrEmpty(user.getEmail())
+                    && !ValidationUtil.isValidEmail(user.getEmail().trim())) {
+                return ResponseUtil.badRequest("Invalid email address");
+            }
+            user.setContactNumber(ValidationUtil.isNullOrEmpty(user.getContactNumber()) ? null : user.getContactNumber().trim());
+            user.setEmail(ValidationUtil.isNullOrEmpty(user.getEmail()) ? null : user.getEmail().trim());
 
             boolean updated = userDAO.updateUser(user);
             if (!updated) {

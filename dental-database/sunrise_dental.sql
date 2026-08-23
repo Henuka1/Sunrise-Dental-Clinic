@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS users (
     -- Soft-delete / account status flag (TRUE = active, FALSE = suspended).
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
+    contact_number VARCHAR(20) DEFAULT NULL,
+
+    email VARCHAR(100) DEFAULT NULL,
+
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -591,6 +595,17 @@ ALTER TABLE users
 
 ALTER TABLE users
     ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- ============================================================
+-- STEP 14c: MIGRATION — Add contact number and email columns
+-- so user accounts can store contact details.
+-- ============================================================
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS contact_number VARCHAR(20) DEFAULT NULL;
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS email VARCHAR(100) DEFAULT NULL;
 
 
 -- ============================================================

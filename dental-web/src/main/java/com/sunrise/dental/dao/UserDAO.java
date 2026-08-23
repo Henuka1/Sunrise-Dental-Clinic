@@ -34,6 +34,12 @@ public class UserDAO {
             stmt.executeUpdate(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"
             );
+            stmt.executeUpdate(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS contact_number VARCHAR(20) DEFAULT NULL"
+            );
+            stmt.executeUpdate(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(100) DEFAULT NULL"
+            );
             permissionsReady = true;
         } catch (SQLException e) {
             // Column may already exist under a different state, or ALTER unsupported.
@@ -45,13 +51,13 @@ public class UserDAO {
 
     private String userSelectColumns() {
         return permissionsReady
-                ? "user_id, username, full_name, role, permissions, is_active"
+                ? "user_id, username, full_name, role, permissions, is_active, contact_number, email"
                 : "user_id, username, full_name, role";
     }
 
     private String userSelectColumnsWithCreated() {
         return permissionsReady
-                ? "user_id, username, full_name, role, permissions, is_active, created_at"
+                ? "user_id, username, full_name, role, permissions, is_active, contact_number, email, created_at"
                 : "user_id, username, full_name, role, created_at";
     }
 
@@ -76,6 +82,8 @@ public class UserDAO {
                     if (permissionsReady) {
                         user.setPermissions(rs.getString("permissions"));
                         user.setActive(rs.getBoolean("is_active"));
+                        user.setContactNumber(rs.getString("contact_number"));
+                        user.setEmail(rs.getString("email"));
                     } else {
                         // The is_active column does not exist in this database.
                         // Treat every account as active so nobody gets locked out.
@@ -107,6 +115,8 @@ public class UserDAO {
                     if (permissionsReady) {
                         user.setPermissions(rs.getString("permissions"));
                         user.setActive(rs.getBoolean("is_active"));
+                        user.setContactNumber(rs.getString("contact_number"));
+                        user.setEmail(rs.getString("email"));
                     }
                     return user;
                 }
@@ -152,21 +162,31 @@ public class UserDAO {
     }
 
     public boolean addUser(User user) {
-        String sql = "INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)";
-        try (Connection conn = DBConnection.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, user.getUsername());
-            ps.setString(2, user.getPassword());
-            ps.setString(3, user.getFullName());
-            ps.setString(4, user.getRole());
-            int affected = ps.executeUpdate();
-            if (affected > 0) {
-                try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (keys.next()) {
-                        user.setUserId(keys.getInt(1));
-                    }
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            ensurePermissionsColumn(conn);
+            String sql = "INSERT INTO users (username, password, full_name, role"
+                    + (permissionsReady ? ", contact_number, email" : "")
+                    + ") VALUES (?, ?, ?, ?"
+                    + (permissionsReady ? ", ?, ?" : "")
+                    + ")";
+            try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, user.getUsername());
+                ps.setString(2, user.getPassword());
+                ps.setString(3, user.getFullName());
+                ps.setString(4, user.getRole());
+                if (permissionsReady) {
+                    ps.setString(5, user.getContactNumber());
+                    ps.setString(6, user.getEmail());
                 }
-                return true;
+                int affected = ps.executeUpdate();
+                if (affected > 0) {
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) {
+                            user.setUserId(keys.getInt(1));
+                        }
+                    }
+                    return true;
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -175,24 +195,36 @@ public class UserDAO {
     }
 
     public boolean updateUser(User user) {
-        String sql;
-        boolean hasNewPassword = user.getPassword() != null && !user.getPassword().trim().isEmpty();
-        if (hasNewPassword) {
-            sql = "UPDATE users SET full_name = ?, role = ?, password = ? WHERE user_id = ?";
-        } else {
-            sql = "UPDATE users SET full_name = ?, role = ? WHERE user_id = ?";
-        }
-        try (Connection conn = DBConnection.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, user.getFullName());
-            ps.setString(2, user.getRole());
-            if (hasNewPassword) {
-                ps.setString(3, user.getPassword());
-                ps.setInt(4, user.getUserId());
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            ensurePermissionsColumn(conn);
+            boolean hasNewPassword = user.getPassword() != null && !user.getPassword().trim().isEmpty();
+            String sql;
+            if (permissionsReady) {
+                // Include contact/email columns when they have been created by the migration.
+                if (hasNewPassword) {
+                    sql = "UPDATE users SET full_name = ?, role = ?, password = ?, contact_number = ?, email = ? WHERE user_id = ?";
+                } else {
+                    sql = "UPDATE users SET full_name = ?, role = ?, contact_number = ?, email = ? WHERE user_id = ?";
+                }
+            } else if (hasNewPassword) {
+                sql = "UPDATE users SET full_name = ?, role = ?, password = ? WHERE user_id = ?";
             } else {
-                ps.setInt(3, user.getUserId());
+                sql = "UPDATE users SET full_name = ?, role = ? WHERE user_id = ?";
             }
-            return ps.executeUpdate() > 0;
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, user.getFullName());
+                ps.setString(2, user.getRole());
+                int idx = 3;
+                if (hasNewPassword) {
+                    ps.setString(idx++, user.getPassword());
+                }
+                if (permissionsReady) {
+                    ps.setString(idx++, user.getContactNumber());
+                    ps.setString(idx++, user.getEmail());
+                }
+                ps.setInt(idx, user.getUserId());
+                return ps.executeUpdate() > 0;
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -283,6 +315,8 @@ public class UserDAO {
         if (permissionsReady) {
             user.setPermissions(rs.getString("permissions"));
             user.setActive(rs.getBoolean("is_active"));
+            user.setContactNumber(rs.getString("contact_number"));
+            user.setEmail(rs.getString("email"));
         }
         user.setCreatedAt(rs.getString("created_at"));
         return user;
