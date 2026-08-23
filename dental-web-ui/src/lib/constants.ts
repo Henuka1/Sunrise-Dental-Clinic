@@ -25,25 +25,27 @@ export const STATUS_COLORS: Record<string, string> = {
 export type UserRole = "ADMIN" | "RECEPTIONIST" | "DENTIST";
 
 export const NAV_LINKS: Record<UserRole, { to: string; label: string }[]> = {
-  ADMIN: [
+    ADMIN: [
     { to: "/dashboard", label: "Dashboard" },
     { to: "/patients/new", label: "Register Patient" },
     { to: "/appointments/new", label: "New Appointment" },
     { to: "/appointments", label: "Appointments" },
     { to: "/search", label: "Search" },
     { to: "/billing", label: "Billing" },
+    { to: "/treatments", label: "Treatment Manage" },
     { to: "/reports", label: "Reports" },
     { to: "/users", label: "User Management" },
     { to: "/users/access", label: "User Access Control" },
     { to: "/help", label: "Help" },
   ],
-  RECEPTIONIST: [
+    RECEPTIONIST: [
     { to: "/dashboard", label: "Dashboard" },
     { to: "/patients/new", label: "Register Patient" },
     { to: "/appointments/new", label: "New Appointment" },
     { to: "/appointments", label: "Appointments" },
     { to: "/search", label: "Search" },
     { to: "/billing", label: "Billing" },
+    { to: "/treatments", label: "Treatment Manage" },
     { to: "/reports", label: "Reports" },
     { to: "/users", label: "User Management" },
     { to: "/users/access", label: "User Access Control" },

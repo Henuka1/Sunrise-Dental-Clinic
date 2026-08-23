@@ -48,6 +48,10 @@ export const dentistService = {
 export const treatmentService = {
   getAll: () => api.get<ApiResponse<Treatment[]>>("/treatments"),
   getById: (id: number) => api.get<ApiResponse<Treatment>>(`/treatments/${id}`),
+  create: (data: Partial<Treatment>) => api.post<ApiResponse<Treatment>>("/treatments", data),
+  update: (id: number, data: Partial<Treatment>) =>
+    api.put<ApiResponse<Treatment>>(`/treatments/${id}`, data),
+  remove: (id: number) => api.delete<ApiResponse<null>>(`/treatments/${id}`),
 };
 
 export const appointmentService = {

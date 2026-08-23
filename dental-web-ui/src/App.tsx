@@ -9,6 +9,7 @@ import NewAppointmentPage from "@/pages/NewAppointmentPage";
 import AppointmentsPage from "@/pages/AppointmentsPage";
 import SearchPage from "@/pages/SearchPage";
 import BillingPage from "@/pages/BillingPage";
+import TreatmentsPage from "@/pages/TreatmentsPage";
 import ReportsPage from "@/pages/ReportsPage";
 import HelpPage from "@/pages/HelpPage";
 import PatientRegisterPage from "@/pages/PatientRegisterPage";
@@ -38,7 +39,8 @@ function AppRoutes() {
         <Route path="/patients" element={<PatientsPage />} />
         <Route path="/appointments" element={<AppointmentsPage />} />
         <Route path="/search" element={<SearchPage />} />
-        <Route path="/billing" element={<BillingPage />} />
+                <Route path="/billing" element={<BillingPage />} />
+        <Route path="/treatments" element={<TreatmentsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/users" element={<UserManagementPage />} />
         <Route path="/users/access" element={<UserAccessControlPage />} />

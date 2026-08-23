@@ -5,7 +5,7 @@ import type { UserRole } from "@/lib/constants";
 import { PATH_MODULE, hasAccess } from "@/lib/permissions";
 
 const ROLE_ACCESS: Record<UserRole, string[]> = {
-  ADMIN: [
+    ADMIN: [
     "/dashboard",
     "/appointments",
     "/appointments/new",
@@ -13,12 +13,13 @@ const ROLE_ACCESS: Record<UserRole, string[]> = {
     "/patients/new",
     "/search",
     "/billing",
+    "/treatments",
     "/reports",
     "/users",
     "/users/access",
     "/help",
   ],
-  RECEPTIONIST: [
+    RECEPTIONIST: [
     "/dashboard",
     "/appointments",
     "/appointments/new",
@@ -26,6 +27,7 @@ const ROLE_ACCESS: Record<UserRole, string[]> = {
     "/patients/new",
     "/search",
     "/billing",
+    "/treatments",
     "/reports",
     "/users",
     "/users/access",

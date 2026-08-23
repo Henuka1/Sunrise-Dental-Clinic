@@ -43,7 +43,62 @@ public class TreatmentDAO {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return null;
+                return null;
+    }
+
+    public boolean createTreatment(Treatment treatment) {
+        String sql = "INSERT INTO treatments (treatment_name, treatment_code, base_cost, consultation_fee, description) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, treatment.getTreatmentName());
+            ps.setString(2, treatment.getTreatmentCode());
+            ps.setDouble(3, treatment.getBaseCost());
+            ps.setDouble(4, treatment.getConsultationFee());
+            ps.setString(5, treatment.getDescription());
+            int affected = ps.executeUpdate();
+            if (affected > 0) {
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (keys.next()) {
+                        treatment.setTreatmentId(keys.getInt(1));
+                    }
+                }
+                return true;
+            }
+        } catch (SQLException e) {
+            // Duplicate treatment_code or other constraint violation -> false
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean updateTreatment(Treatment treatment) {
+        String sql = "UPDATE treatments SET treatment_name = ?, treatment_code = ?, base_cost = ?, consultation_fee = ?, description = ? WHERE treatment_id = ?";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, treatment.getTreatmentName());
+            ps.setString(2, treatment.getTreatmentCode());
+            ps.setDouble(3, treatment.getBaseCost());
+            ps.setDouble(4, treatment.getConsultationFee());
+            ps.setString(5, treatment.getDescription());
+            ps.setInt(6, treatment.getTreatmentId());
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean deleteTreatment(int treatmentId) {
+        String sql = "DELETE FROM treatments WHERE treatment_id = ?";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, treatmentId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            // FK constraint (e.g. referenced by appointments) -> false
+            e.printStackTrace();
+        }
+        return false;
     }
 
     private Treatment mapResultSet(ResultSet rs) throws SQLException {

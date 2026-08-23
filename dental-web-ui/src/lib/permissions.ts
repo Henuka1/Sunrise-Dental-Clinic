@@ -4,7 +4,8 @@ export type ModuleKey =
   | "dashboard"
   | "patients"
   | "appointments"
-  | "billing"
+    | "billing"
+  | "treatments"
   | "reports"
   | "users"
   | "user_access"
@@ -22,7 +23,8 @@ export const MODULES: ModuleDef[] = [
   { key: "patients", label: "Patients", path: "/patients", description: "Register and view patient history" },
   { key: "appointments", label: "Appointments", path: "/appointments", description: "Schedule and manage appointments" },
   { key: "billing", label: "Billing", path: "/billing", description: "Create and manage bills" },
-  { key: "reports", label: "Reports", path: "/reports", description: "Daily, revenue and dentist reports" },
+    { key: "reports", label: "Reports", path: "/reports", description: "Daily, revenue and dentist reports" },
+  { key: "treatments", label: "Treatment Manage", path: "/treatments", description: "Manage the treatment catalogue and pricing" },
   { key: "users", label: "User Management", path: "/users", description: "Create, edit and remove user accounts" },
   { key: "user_access", label: "User Access Control", path: "/users/access", description: "Control what each user can access" },
   { key: "help", label: "Help", path: "/help", description: "Help and user guide" },
@@ -39,7 +41,8 @@ export const PATH_MODULE: Record<string, ModuleKey> = {
   "/appointments/new": "appointments",
   "/search": "appointments",
   "/billing": "billing",
-  "/reports": "reports",
+    "/reports": "reports",
+  "/treatments": "treatments",
   "/users": "users",
   "/users/access": "user_access",
   "/help": "help",
@@ -48,7 +51,7 @@ export const PATH_MODULE: Record<string, ModuleKey> = {
 /** Default modules granted to each role when no custom access is stored yet. */
 export const DEFAULT_PERMISSIONS: Record<User["role"], ModuleKey[]> = {
   ADMIN: [...ALL_KEYS],
-  RECEPTIONIST: ["dashboard", "patients", "appointments", "billing", "reports", "help"],
+    RECEPTIONIST: ["dashboard", "patients", "appointments", "billing", "treatments", "reports", "help"],
   DENTIST: ["dashboard", "patients", "appointments", "reports", "help"],
 };
 /** The effective set of modules a given user is allowed to access. */
