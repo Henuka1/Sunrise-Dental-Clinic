@@ -17,6 +17,7 @@ const ROLE_ACCESS: Record<UserRole, string[]> = {
     "/reports",
     "/users",
     "/users/access",
+    "/profile",
     "/help",
   ],
     RECEPTIONIST: [
@@ -31,6 +32,7 @@ const ROLE_ACCESS: Record<UserRole, string[]> = {
     "/reports",
     "/users",
     "/users/access",
+    "/profile",
     "/help",
   ],
   DENTIST: [
@@ -41,6 +43,7 @@ const ROLE_ACCESS: Record<UserRole, string[]> = {
     "/reports",
     "/users",
     "/users/access",
+    "/profile",
     "/help",
   ],
 };

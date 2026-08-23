@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   User as UserIcon,
   LogOut,
+  UserRoundCheck,
   Menu,
   X,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/treatments": Stethoscope,
   "/users": UserRoundPlus,
   "/users/access": ShieldCheck,
+  "/profile": UserRoundCheck,
   "/help": LifeBuoy,
 };
 
@@ -63,6 +65,7 @@ export default function AppLayout() {
         {(NAV_LINKS[user?.role ?? "ADMIN"] || NAV_LINKS.ADMIN)
           .filter(
             (link) =>
+              link.to === "/profile" ||
               user?.role === "ADMIN" ||
               getEffectivePermissions(user).includes(
                 PATH_MODULE[link.to] ?? ("dashboard" as const)

@@ -36,6 +36,7 @@ export const NAV_LINKS: Record<UserRole, { to: string; label: string }[]> = {
     { to: "/reports", label: "Reports" },
     { to: "/users", label: "User Management" },
     { to: "/users/access", label: "User Access Control" },
+    { to: "/profile", label: "Profile" },
     { to: "/help", label: "Help" },
   ],
     RECEPTIONIST: [
@@ -49,6 +50,7 @@ export const NAV_LINKS: Record<UserRole, { to: string; label: string }[]> = {
     { to: "/reports", label: "Reports" },
     { to: "/users", label: "User Management" },
     { to: "/users/access", label: "User Access Control" },
+    { to: "/profile", label: "Profile" },
     { to: "/help", label: "Help" },
   ],
   DENTIST: [
@@ -59,6 +61,7 @@ export const NAV_LINKS: Record<UserRole, { to: string; label: string }[]> = {
     { to: "/reports", label: "My Reports" },
     { to: "/users", label: "User Management" },
     { to: "/users/access", label: "User Access Control" },
+    { to: "/profile", label: "Profile" },
     { to: "/help", label: "Help" },
   ],
 };
