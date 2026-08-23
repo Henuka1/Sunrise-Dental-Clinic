@@ -5,6 +5,7 @@
 package com.sunrise.dental.resources;
 
 import com.google.gson.Gson;
+import com.sunrise.dental.dao.DentistDAO;
 import com.sunrise.dental.dao.UserDAO;
 import com.sunrise.dental.dto.ApiResponseDTO;
 import com.sunrise.dental.model.User;
@@ -25,6 +26,22 @@ import java.util.List;
 public class UserResource {
     private final Gson gson = new Gson();
     private final UserDAO userDAO = new UserDAO();
+    private final DentistDAO dentistDAO = new DentistDAO();
+
+    /**
+     * Keeps the dentists table in sync with DENTIST user accounts.
+     * Creates the dentist record when missing and stores the specialization.
+     */
+    private void syncDentistRecord(User user) {
+        if (!"DENTIST".equals(user.getRole())) {
+            return;
+        }
+        dentistDAO.upsertDentist(
+                user.getFullName(),
+                user.getSpecialization(),
+                user.getContactNumber(),
+                user.getEmail());
+    }
 
     private User getLoggedInUser(HttpServletRequest request) {
         if (request == null) return null;
@@ -59,6 +76,18 @@ public class UserResource {
             return ResponseUtil.forbidden("Access denied: You do not have access to user management");
         }
         List<User> users = userDAO.getAllUsers();
+        // Attach the dentist specialization for DENTIST accounts so the UI
+        // can display it in user management.
+        for (User user : users) {
+            if ("DENTIST".equals(user.getRole())) {
+                com.sunrise.dental.model.Dentist dentist =
+                        dentistDAO.getDentistByFullName(user.getFullName());
+                if (dentist != null) {
+                    user.setDentistId(dentist.getDentistId());
+                    user.setSpecialization(dentist.getSpecialization());
+                }
+            }
+        }
         return ResponseUtil.success(new ApiResponseDTO(true, "Users retrieved", users));
     }
 
@@ -113,9 +142,19 @@ public class UserResource {
             }
             user.setContactNumber(ValidationUtil.isNullOrEmpty(user.getContactNumber()) ? null : user.getContactNumber().trim());
             user.setEmail(ValidationUtil.isNullOrEmpty(user.getEmail()) ? null : user.getEmail().trim());
+            if ("DENTIST".equals(user.getRole())) {
+                if (ValidationUtil.isNullOrEmpty(user.getSpecialization())) {
+                    return ResponseUtil.badRequest("Specialization is required for dentists");
+                }
+                user.setSpecialization(user.getSpecialization().trim());
+            }
             boolean added = userDAO.addUser(user);
             if (!added) {
                 return ResponseUtil.badRequest("Failed to add user");
+            }
+            if ("DENTIST".equals(user.getRole())) {
+                syncDentistRecord(user);
+                user.setDentistId(dentistDAO.getDentistIdByFullName(user.getFullName()));
             }
             return ResponseUtil.created(new ApiResponseDTO(true, "User added successfully", user));
         } catch (Exception e) {
@@ -159,9 +198,39 @@ public class UserResource {
             user.setContactNumber(ValidationUtil.isNullOrEmpty(user.getContactNumber()) ? null : user.getContactNumber().trim());
             user.setEmail(ValidationUtil.isNullOrEmpty(user.getEmail()) ? null : user.getEmail().trim());
 
+            boolean wasDentist = "DENTIST".equals(existing.getRole());
+            boolean isDentist = "DENTIST".equals(user.getRole());
+            String newFullName = user.getFullName().trim();
+
+            if (isDentist) {
+                if (ValidationUtil.isNullOrEmpty(user.getSpecialization())) {
+                    // Keep the specialization already stored on the dentist record.
+                    com.sunrise.dental.model.Dentist dentistRecord =
+                            dentistDAO.getDentistByFullName(existing.getFullName());
+                    String currentSpec = dentistRecord != null ? dentistRecord.getSpecialization() : null;
+                    if (ValidationUtil.isNullOrEmpty(currentSpec)) {
+                        return ResponseUtil.badRequest("Specialization is required for dentists");
+                    }
+                    user.setSpecialization(currentSpec);
+                } else {
+                    user.setSpecialization(user.getSpecialization().trim());
+                }
+                // Keep the dentist record linked when the account is renamed.
+                if (!existing.getFullName().equals(newFullName)) {
+                    dentistDAO.updateDentistName(existing.getFullName(), newFullName);
+                }
+            } else if (wasDentist) {
+                // Role changed away from DENTIST: hide the dentist record.
+                dentistDAO.setDentistActiveByName(existing.getFullName(), false);
+            }
+
             boolean updated = userDAO.updateUser(user);
             if (!updated) {
                 return ResponseUtil.badRequest("Failed to update user");
+            }
+            if (isDentist) {
+                syncDentistRecord(user);
+                user.setDentistId(dentistDAO.getDentistIdByFullName(newFullName));
             }
             return ResponseUtil.success(new ApiResponseDTO(true, "User updated successfully", user));
         } catch (Exception e) {

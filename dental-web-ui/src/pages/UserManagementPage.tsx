@@ -33,6 +33,7 @@ const userSchema = z
     fullName: z.string().min(1, "Full name is required"),
     role: z.enum(["ADMIN", "RECEPTIONIST", "DENTIST"]),
     password: z.string().optional(),
+    specialization: z.string().optional(),
     contactNumber: z
       .string()
       .optional()
@@ -43,6 +44,10 @@ const userSchema = z
       ),
     email: z.string().email("Invalid email").optional().or(z.literal("")),
   })
+  .refine(
+    (data) => data.role !== "DENTIST" || (data.specialization ?? "").trim().length > 0,
+    { message: "Specialization is required for dentists", path: ["specialization"] }
+  )
   .refine(
     (data) => !data.password || data.password.length >= 4,
     { message: "Password must be at least 4 characters", path: ["password"] }
@@ -103,10 +108,14 @@ export default function UserManagementPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
   });
+
+  const selectedRole = watch("role");
+  const isDentistRole = selectedRole === "DENTIST";
 
   const load = async () => {
     setLoading(true);
@@ -133,6 +142,7 @@ export default function UserManagementPage() {
       fullName: "",
       role: "RECEPTIONIST",
       password: "",
+      specialization: "",
       contactNumber: "",
       email: "",
     });
@@ -146,6 +156,7 @@ export default function UserManagementPage() {
       fullName: user.fullName,
       role: user.role,
       password: "",
+      specialization: user.specialization ?? "",
       contactNumber: user.contactNumber ?? "",
       email: user.email ?? "",
     });
@@ -162,6 +173,8 @@ export default function UserManagementPage() {
           role: data.role,
           contactNumber: data.contactNumber || undefined,
           email: data.email || undefined,
+          specialization:
+            data.role === "DENTIST" ? data.specialization || undefined : undefined,
         };
         if (data.password && data.password.length >= 4) {
           payload.password = data.password;
@@ -176,6 +189,8 @@ export default function UserManagementPage() {
           password: data.password || "",
           contactNumber: data.contactNumber || undefined,
           email: data.email || undefined,
+          specialization:
+            data.role === "DENTIST" ? data.specialization || undefined : undefined,
         });
         toast.success(res.data.message || "User added successfully");
       }
@@ -292,6 +307,9 @@ export default function UserManagementPage() {
                         <div>
                           <p className="font-medium text-slate-900">{user.fullName}</p>
                           <p className="text-xs text-slate-500">@{user.username}</p>
+                          {user.specialization && (
+                            <p className="text-xs text-teal-600">{user.specialization}</p>
+                          )}
                           {(user.contactNumber || user.email) && (
                             <p className="text-xs text-slate-500">
                               {[user.contactNumber, user.email].filter(Boolean).join(" · ")}
@@ -381,6 +399,9 @@ export default function UserManagementPage() {
                   <div className="min-w-0">
                     <p className="truncate font-medium text-slate-900">{user.fullName}</p>
                     <p className="truncate text-xs text-slate-500">@{user.username}</p>
+                    {user.specialization && (
+                      <p className="truncate text-xs text-teal-600">{user.specialization}</p>
+                    )}
                     {(user.contactNumber || user.email) && (
                       <p className="truncate text-xs text-slate-500">
                         {[user.contactNumber, user.email].filter(Boolean).join(" · ")}
@@ -505,6 +526,15 @@ export default function UserManagementPage() {
                 error={errors.role?.message}
                 {...register("role")}
               />
+              {isDentistRole && (
+                <Input
+                  label="Specialization"
+                  required
+                  placeholder="e.g. Orthodontics, Oral Surgery"
+                  error={errors.specialization?.message}
+                  {...register("specialization")}
+                />
+              )}
               <Input
                 label={editing ? "New Password (leave blank to keep current)" : "Password"}
                 type="password"

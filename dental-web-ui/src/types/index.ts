@@ -100,6 +100,8 @@ export interface ManagedUser {
   isActive?: boolean;
   contactNumber?: string;
   email?: string;
+  dentistId?: number;
+  specialization?: string;
 }
 
 export interface UserPayload {
@@ -109,6 +111,7 @@ export interface UserPayload {
   role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
   contactNumber?: string;
   email?: string;
+  specialization?: string;
 }
 
 export interface ProfileUpdateRequest {
