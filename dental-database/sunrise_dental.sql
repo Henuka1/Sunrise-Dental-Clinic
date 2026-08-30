@@ -609,6 +609,36 @@ ALTER TABLE users
 
 
 -- ============================================================
+-- STEP 14d: MIGRATION — Dentist weekly availability table.
+-- One row per weekday per dentist (0 = Sunday ... 6 = Saturday).
+-- Times are stored in 24h TIME format.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS dentist_availability (
+    availability_id INT PRIMARY KEY AUTO_INCREMENT,
+
+    dentist_id INT NOT NULL,
+
+    day_of_week TINYINT NOT NULL,
+
+    start_time TIME NOT NULL,
+
+    end_time TIME NOT NULL,
+
+    is_available BOOLEAN NOT NULL DEFAULT TRUE,
+
+    CONSTRAINT fk_availability_dentist
+        FOREIGN KEY (dentist_id) REFERENCES dentists(dentist_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uniq_dentist_day UNIQUE (dentist_id, day_of_week)
+) ENGINE=InnoDB;
+
+ALTER TABLE dentist_availability
+    ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE;
+
+
+-- ============================================================
 -- STEP 15: VERIFY DATA
 -- ============================================================
 

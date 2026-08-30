@@ -159,3 +159,15 @@ export interface PatientReportData {
   totalVisits: number;
   appointments: Appointment[];
 }
+
+export interface DentistAvailability {
+  availabilityId?: number;
+  dentistId: number;
+  /** 0 = Sunday ... 6 = Saturday (matches JS Date.getDay()) */
+  dayOfWeek: number;
+  /** "HH:MM" 24h format */
+  startTime: string;
+  /** "HH:MM" 24h format */
+  endTime: string;
+  isAvailable: boolean;
+}

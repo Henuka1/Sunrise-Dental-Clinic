@@ -1,22 +1,39 @@
 import { useState, useEffect } from "react";
-import { CalendarCheck2, Clock, CheckCircle2, XCircle, Stethoscope, CalendarOff } from "lucide-react";
+import { toast } from "sonner";
+import {
+  CalendarCheck2,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Stethoscope,
+  CalendarOff,
+  Save,
+  CalendarCog,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import Spinner from "@/components/ui/Spinner";
 import ErrorState from "@/components/ErrorState";
+import Button from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
-import { dentistService, appointmentService } from "@/lib/services";
-import { getTodayString, formatTime, formatDate } from "@/lib/utils";
-import type { Appointment, Dentist } from "@/types";
+import { dentistService, appointmentService, availabilityService } from "@/lib/services";
+import { getTodayString, formatTime, formatDate, getErrorMessage } from "@/lib/utils";
+import type { Appointment, Dentist, DentistAvailability } from "@/types";
 
-/** Clinic working hours used to compute free slots. */
+/** Clinic working hours used when no availability is saved yet. */
 const WORK_START = 9; // 09:00
 const WORK_END = 17; // 17:00
+
+/** 0 = Sunday ... 6 = Saturday (matches JS Date.getDay()). */
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const DEFAULT_SLOT = { startTime: "09:00", endTime: "17:00", isAvailable: false };
 
 export default function DentistAvailablePage() {
   const { user } = useAuth();
   const [dentist, setDentist] = useState<Dentist | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [availability, setAvailability] = useState<DentistAvailability[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -42,8 +59,20 @@ export default function DentistAvailablePage() {
         ? allToday.filter((a) => a.dentistId === target!.dentistId)
         : allToday.filter((a) => a.dentistName === user?.fullName);
 
+      let avail: DentistAvailability[] = [];
+      if (target) {
+        try {
+          const availRes = await availabilityService.get(target.dentistId);
+          avail = availRes.data.data || [];
+        } catch {
+          // Availability table may not exist yet — fall back to defaults.
+          avail = [];
+        }
+      }
+
       setDentist(target);
       setAppointments(mine);
+      setAvailability(avail);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load availability");
     } finally {
@@ -76,7 +105,15 @@ export default function DentistAvailablePage() {
     );
   }
 
-  return <AvailabilityView dentist={dentist} appointments={appointments} user={user} />;
+  return (
+    <AvailabilityView
+      dentist={dentist}
+      appointments={appointments}
+      availability={availability}
+      user={user}
+      onChanged={load}
+    />
+  );
 }
 
 /** Current time rounded down to the nearest half hour, e.g. "14:30". */
@@ -89,24 +126,43 @@ function getCurrentHalfHour(): string {
 interface AvailabilityViewProps {
   dentist: Dentist | null;
   appointments: Appointment[];
+  availability: DentistAvailability[];
   user: { fullName?: string } | null;
+  onChanged: () => void;
 }
 
-function AvailabilityView({ dentist, appointments, user }: AvailabilityViewProps) {
+function AvailabilityView({ dentist, appointments, availability, user, onChanged }: AvailabilityViewProps) {
   const today = getTodayString();
+  const todayDow = new Date().getDay();
   const active = appointments.filter(
     (a) => a.status === "SCHEDULED" || a.status === "COMPLETED"
   );
   const bookedTimes = active.map((a) => a.appointmentTime.slice(0, 5));
-  const isAvailableNow = !!dentist?.isActive && !bookedTimes.includes(getCurrentHalfHour());
+
+  // Working window for today comes from the saved weekly schedule;
+  // fall back to the default clinic hours when nothing is saved.
+  const todaySlot = availability.find((s) => s.dayOfWeek === todayDow);
+  const windowStart = todaySlot?.startTime ?? `${WORK_START}:00`;
+  const windowEnd = todaySlot?.endTime ?? `${WORK_END}:00`;
 
   const freeSlots: string[] = [];
-  for (let h = WORK_START; h < WORK_END; h++) {
-    for (const m of ["00", "30"]) {
-      const slot = `${h.toString().padStart(2, "0")}:${m}`;
+  if (todaySlot?.isAvailable) {
+    let [h, m] = windowStart.split(":").map(Number);
+    const [eh, em] = windowEnd.split(":").map(Number);
+    while (h < eh || (h === eh && m < em)) {
+      const slot = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
       if (!bookedTimes.includes(slot)) freeSlots.push(slot);
+      m += 30;
+      if (m >= 60) { m -= 60; h += 1; }
     }
   }
+
+  const isAvailableNow =
+    !!dentist?.isActive &&
+    !!todaySlot?.isAvailable &&
+    windowStart <= getCurrentHalfHour() &&
+    getCurrentHalfHour() < windowEnd &&
+    !bookedTimes.includes(getCurrentHalfHour());
 
   return (
     <div>
@@ -217,9 +273,20 @@ function AvailabilityView({ dentist, appointments, user }: AvailabilityViewProps
         <Card>
           <CardHeader
             title="Available Time Slots"
-            description={`Clinic hours ${WORK_START}:00 AM – ${WORK_END}:00 PM`}
+            description={
+              todaySlot?.isAvailable
+                ? `Today's hours ${formatTime(windowStart)} – ${formatTime(windowEnd)}`
+                : "You are marked unavailable today — set your hours below"
+            }
           />
-          {freeSlots.length === 0 ? (
+          {!todaySlot?.isAvailable ? (
+            <div className="mt-4 flex flex-col items-center rounded-xl border border-dashed border-slate-300 py-10 text-center">
+              <CalendarOff className="h-8 w-8 text-slate-400" />
+              <p className="mt-3 text-sm text-slate-500">
+                Marked as unavailable for {DAY_NAMES[todayDow]}.
+              </p>
+            </div>
+          ) : freeSlots.length === 0 ? (
             <div className="mt-4 flex flex-col items-center rounded-xl border border-dashed border-slate-300 py-10 text-center">
               <CalendarOff className="h-8 w-8 text-slate-400" />
               <p className="mt-3 text-sm text-slate-500">No free slots remaining today.</p>
@@ -238,6 +305,128 @@ function AvailabilityView({ dentist, appointments, user }: AvailabilityViewProps
           )}
         </Card>
       </div>
+
+      {/* Manage weekly availability */}
+      <ManageAvailability dentistId={dentist?.dentistId ?? 0} availability={availability} onChanged={onChanged} />
     </div>
+  );
+}
+
+interface ManageAvailabilityProps {
+  dentistId: number;
+  availability: DentistAvailability[];
+  onChanged: () => void;
+}
+
+function ManageAvailability({ dentistId, availability, onChanged }: ManageAvailabilityProps) {
+  const [slots, setSlots] = useState<DentistAvailability[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Sync the editable copy whenever the loaded availability changes.
+  useEffect(() => {
+    setSlots(
+      DAY_NAMES.map((_, day) => {
+        const existing = availability.find((s) => s.dayOfWeek === day);
+        return {
+          dentistId,
+          dayOfWeek: day,
+          startTime: existing?.startTime ?? DEFAULT_SLOT.startTime,
+          endTime: existing?.endTime ?? DEFAULT_SLOT.endTime,
+          isAvailable: existing?.isAvailable ?? false,
+        };
+      })
+    );
+  }, [availability, dentistId]);
+
+  const update = (day: number, patch: Partial<DentistAvailability>) =>
+    setSlots((prev) => prev.map((s) => (s.dayOfWeek === day ? { ...s, ...patch } : s)));
+
+  const handleSave = async () => {
+    if (!dentistId) {
+      toast.error("No dentist record linked to your account");
+      return;
+    }
+    const invalid = slots.find((s) => s.isAvailable && s.startTime >= s.endTime);
+    if (invalid) {
+      toast.error(`${DAY_NAMES[invalid.dayOfWeek]}: start time must be before end time`);
+      return;
+    }
+    setSaving(true);
+    try {
+      await availabilityService.save(
+        dentistId,
+        slots.filter((s) => s.isAvailable)
+      );
+      toast.success("Weekly availability saved");
+      onChanged();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="mt-6">
+      <CardHeader
+        title="Manage My Weekly Availability"
+        description="Set which days and hours you are available at the clinic. Saved to the database."
+        action={
+          <Button onClick={handleSave} disabled={saving || !dentistId}>
+            <Save className="h-4 w-4" />
+            {saving ? "Saving..." : "Save Availability"}
+          </Button>
+        }
+      />
+
+      <div className="mt-4 space-y-2">
+        {slots.map((slot) => (
+          <div
+            key={slot.dayOfWeek}
+            className={`flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
+              slot.isAvailable ? "border-green-200 bg-green-50/50" : "border-slate-200 bg-slate-50"
+            }`}
+          >
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={slot.isAvailable}
+                onChange={(e) => update(slot.dayOfWeek, { isAvailable: e.target.checked })}
+                className="h-4 w-4 accent-teal-600"
+              />
+              <span className="text-sm font-medium text-slate-900">{DAY_NAMES[slot.dayOfWeek]}</span>
+              {slot.dayOfWeek === new Date().getDay() && (
+                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-teal-700">
+                  Today
+                </span>
+              )}
+            </label>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                value={slot.startTime}
+                disabled={!slot.isAvailable}
+                onChange={(e) => update(slot.dayOfWeek, { startTime: e.target.value })}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 disabled:opacity-50"
+              />
+              <span className="text-sm text-slate-400">–</span>
+              <input
+                type="time"
+                value={slot.endTime}
+                disabled={!slot.isAvailable}
+                onChange={(e) => update(slot.dayOfWeek, { endTime: e.target.value })}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 disabled:opacity-50"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 text-xs text-slate-500">
+        Unchecked days are treated as fully unavailable. Booked appointments inside your hours are
+        excluded from the free slots shown above.
+      </p>
+    </Card>
   );
 }

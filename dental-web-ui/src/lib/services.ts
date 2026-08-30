@@ -53,6 +53,18 @@ export const dentistService = {
   getById: (id: number) => api.get<ApiResponse<Dentist>>(`/dentists/${id}`),
 };
 
+export const availabilityService = {
+  get: (dentistId: number) =>
+    api.get<ApiResponse<import("@/types").DentistAvailability[]>>(
+      `/dentists/${dentistId}/availability`
+    ),
+  save: (dentistId: number, slots: import("@/types").DentistAvailability[]) =>
+    api.put<ApiResponse<import("@/types").DentistAvailability[]>>(
+      `/dentists/${dentistId}/availability`,
+      slots
+    ),
+};
+
 export const treatmentService = {
   getAll: () => api.get<ApiResponse<Treatment[]>>("/treatments"),
   getById: (id: number) => api.get<ApiResponse<Treatment>>(`/treatments/${id}`),
