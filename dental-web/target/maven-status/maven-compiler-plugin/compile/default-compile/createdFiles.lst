@@ -1,7 +1,9 @@
 com\sunrise\dental\resources\TreatmentResource.class
+com\sunrise\dental\dao\AvailabilityDAO.class
 com\sunrise\dental\resources\AppointmentResource.class
 com\sunrise\dental\resources\UserResource$AccessRequestDTO.class
 com\sunrise\dental\model\User.class
+com\sunrise\dental\resources\DentistResource$1.class
 com\sunrise\dental\config\ApplicationConfig.class
 com\sunrise\dental\dao\DentistDAO.class
 com\sunrise\dental\resources\DentistResource.class
@@ -11,6 +13,7 @@ com\sunrise\dental\model\Treatment.class
 com\sunrise\dental\factory\BillFactory.class
 com\sunrise\dental\dto\ProfileUpdateRequestDTO.class
 com\sunrise\dental\filter\AuthenticationFilter.class
+com\sunrise\dental\model\DentistAvailability.class
 com\sunrise\dental\dao\TreatmentDAO.class
 com\sunrise\dental\resources\ReportResource.class
 com\sunrise\dental\web\resources\JakartaEE11Resource.class

@@ -355,7 +355,13 @@ function ManageAvailability({ dentistId, availability, onChanged }: ManageAvaila
     try {
       await availabilityService.save(
         dentistId,
-        slots.filter((s) => s.isAvailable)
+        slots
+          .filter((s) => s.isAvailable)
+          .map((s) => ({
+            ...s,
+            startTime: s.startTime.replace(/\s/g, ""),
+            endTime: s.endTime.replace(/\s/g, ""),
+          }))
       );
       toast.success("Weekly availability saved");
       onChanged();

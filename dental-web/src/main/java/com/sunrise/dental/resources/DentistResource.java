@@ -92,7 +92,13 @@ public class DentistResource {
             }
         }
 
-        boolean saved = availabilityDAO.saveAll(id, slots);
+        boolean saved;
+        try {
+            saved = availabilityDAO.saveAll(id, slots);
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+            return ResponseUtil.serverError("Failed to save availability: " + e.getMessage());
+        }
         if (!saved) {
             return ResponseUtil.serverError("Failed to save availability");
         }

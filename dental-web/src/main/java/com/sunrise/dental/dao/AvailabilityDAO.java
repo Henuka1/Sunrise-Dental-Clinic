@@ -32,8 +32,9 @@ public class AvailabilityDAO {
     /**
      * Replaces the dentist's whole weekly availability in a single
      * transaction (delete existing rows, insert the new schedule).
+     * Throws SQLException so callers can surface the real error message.
      */
-    public boolean saveAll(int dentistId, List<DentistAvailability> slots) {
+    public boolean saveAll(int dentistId, List<DentistAvailability> slots) throws SQLException {
         String deleteSql = "DELETE FROM dentist_availability WHERE dentist_id = ?";
         String insertSql = "INSERT INTO dentist_availability "
                 + "(dentist_id, day_of_week, start_time, end_time, is_available) VALUES (?, ?, ?, ?, ?)";
@@ -49,8 +50,8 @@ public class AvailabilityDAO {
                 for (DentistAvailability s : slots) {
                     ins.setInt(1, dentistId);
                     ins.setInt(2, s.getDayOfWeek());
-                    ins.setTime(3, Time.valueOf(normalizeTime(s.getStartTime()) + ":00"));
-                    ins.setTime(4, Time.valueOf(normalizeTime(s.getEndTime()) + ":00"));
+                    ins.setTime(3, Time.valueOf(normalizeTime(s.getStartTime())));
+                    ins.setTime(4, Time.valueOf(normalizeTime(s.getEndTime())));
                     ins.setBoolean(5, s.isAvailable());
                     ins.addBatch();
                 }
@@ -58,19 +59,17 @@ public class AvailabilityDAO {
             }
             conn.commit();
             return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ignore) {}
-            }
-            return false;
         } catch (IllegalArgumentException e) {
-            // invalid time string
-            e.printStackTrace();
+            // invalid time string — roll back and rethrow with a clear message
             if (conn != null) {
                 try { conn.rollback(); } catch (SQLException ignore) {}
             }
-            return false;
+            throw new SQLException("Invalid time value: " + e.getMessage(), e);
+        } catch (SQLException e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignore) {}
+            }
+            throw e;
         } finally {
             if (conn != null) {
                 try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ignore) {}
@@ -78,19 +77,26 @@ public class AvailabilityDAO {
         }
     }
 
-    /** Accepts "HH:MM" or "HH:MM:SS" and returns "HH:MM:SS" for Time.valueOf. */
+    /** Accepts "HH:MM", "HH:MM:SS", or values with stray spaces (e.g. " 00: 00") and returns "HH:MM:SS" for Time.valueOf. */
     private String normalizeTime(String time) {
         if (time == null || time.trim().isEmpty()) {
             throw new IllegalArgumentException("Empty time value");
         }
-        String t = time.trim();
+        String t = time.trim().replaceAll("[\\s\\u00A0]+", "");
         String[] parts = t.split(":");
-        int h = Integer.parseInt(parts[0]);
-        int m = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
-        if (h < 0 || h > 23 || m < 0 || m > 59) {
-            throw new IllegalArgumentException("Invalid time: " + time);
+        if (parts.length < 2) {
+            throw new IllegalArgumentException("AV2: Time must be in HH:MM format: " + time);
         }
-        return String.format("%02d:%02d:00", h, m);
+        try {
+            int h = Integer.parseInt(parts[0].trim());
+            int m = Integer.parseInt(parts[1].trim());
+            if (h < 0 || h > 23 || m < 0 || m > 59) {
+                throw new IllegalArgumentException("AV1: Invalid time: " + time);
+            }
+            return String.format("%02d:%02d:00", h, m);
+        } catch (NumberFormatException nfe) {
+            throw new IllegalArgumentException("AV2: Non-numeric time: " + time);
+        }
     }
 
     private DentistAvailability mapResultSet(ResultSet rs) throws SQLException {
