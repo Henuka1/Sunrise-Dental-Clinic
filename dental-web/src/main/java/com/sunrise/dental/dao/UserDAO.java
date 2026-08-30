@@ -231,25 +231,37 @@ public class UserDAO {
         return false;
     }
 
-    public boolean updateOwnProfile(int userId, String username, String fullName, String newPassword) {
-        String sql;
-        boolean hasNewPassword = newPassword != null && !newPassword.trim().isEmpty();
-        if (hasNewPassword) {
-            sql = "UPDATE users SET username = ?, full_name = ?, password = ? WHERE user_id = ?";
-        } else {
-            sql = "UPDATE users SET username = ?, full_name = ? WHERE user_id = ?";
-        }
-        try (Connection conn = DBConnection.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
-            ps.setString(2, fullName);
-            if (hasNewPassword) {
-                ps.setString(3, newPassword);
-                ps.setInt(4, userId);
+    public boolean updateOwnProfile(int userId, String username, String fullName,
+                                    String contactNumber, String email, String newPassword) {
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            ensurePermissionsColumn(conn);
+            boolean hasNewPassword = newPassword != null && !newPassword.trim().isEmpty();
+            String sql;
+            if (permissionsReady) {
+                if (hasNewPassword) {
+                    sql = "UPDATE users SET username = ?, full_name = ?, password = ?, contact_number = ?, email = ? WHERE user_id = ?";
+                } else {
+                    sql = "UPDATE users SET username = ?, full_name = ?, contact_number = ?, email = ? WHERE user_id = ?";
+                }
+            } else if (hasNewPassword) {
+                sql = "UPDATE users SET username = ?, full_name = ?, password = ? WHERE user_id = ?";
             } else {
-                ps.setInt(3, userId);
+                sql = "UPDATE users SET username = ?, full_name = ? WHERE user_id = ?";
             }
-            return ps.executeUpdate() > 0;
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, username);
+                ps.setString(2, fullName);
+                int idx = 3;
+                if (hasNewPassword) {
+                    ps.setString(idx++, newPassword);
+                }
+                if (permissionsReady) {
+                    ps.setString(idx++, contactNumber);
+                    ps.setString(idx++, email);
+                }
+                ps.setInt(idx, userId);
+                return ps.executeUpdate() > 0;
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }

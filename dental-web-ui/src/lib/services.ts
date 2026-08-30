@@ -15,13 +15,15 @@ import type {
   ManagedUser,
   UserPayload,
   ProfileUpdateRequest,
+  UserProfileData,
 } from "@/types";
 
 export const authService = {
   login: (data: LoginRequest) => api.post<LoginResponse>("/auth/login", data),
   logout: () => api.post<ApiResponse<null>>("/auth/logout"),
+  getProfile: () => api.get<ApiResponse<UserProfileData>>("/auth/profile"),
   updateProfile: (data: ProfileUpdateRequest) =>
-    api.put<ApiResponse<ManagedUser>>("/auth/profile", data),
+    api.put<ApiResponse<UserProfileData>>("/auth/profile", data),
 };
 
 export const userService = {

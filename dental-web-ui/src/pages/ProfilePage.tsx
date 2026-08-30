@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,6 +11,9 @@ import {
   FileText,
   Hash,
   UserCog,
+  Phone,
+  Mail,
+  Stethoscope,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -31,18 +34,41 @@ const profileSchema = z
   .object({
     username: z.string().min(1, "Username is required"),
     fullName: z.string().min(1, "Full name is required"),
+    role: z.string().optional(),
     newPassword: z.string().optional(),
+    contactNumber: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine(
+        (val) => !val || /^[0-9+\-\s]+$/.test(val),
+        { message: "Invalid contact number" }
+      ),
+    email: z.string().email("Invalid email").optional().or(z.literal("")),
+    specialization: z.string().optional(),
   })
   .refine(
     (data) => !data.newPassword || data.newPassword.length >= 4,
     { message: "Password must be at least 4 characters", path: ["newPassword"] }
+  )
+  .refine(
+    (data) =>
+      !isDentistRole(data.role) || (data.specialization ?? "").trim().length > 0,
+    { message: "Specialization is required for dentists", path: ["specialization"] }
   );
+
+function isDentistRole(role?: string) {
+  return role === "DENTIST";
+}
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileSpecialization, setProfileSpecialization] = useState("");
+  const isDentist = isDentistRole(user?.role);
 
   const {
     register,
@@ -54,9 +80,43 @@ export default function ProfilePage() {
     defaultValues: {
       username: user?.username ?? "",
       fullName: user?.fullName ?? "",
+      role: user?.role ?? "",
       newPassword: "",
+      contactNumber: "",
+      email: "",
+      specialization: "",
     },
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadProfile = async () => {
+      try {
+        const res = await authService.getProfile();
+        const profile = res.data.data;
+        if (cancelled) return;
+        setProfileSpecialization(profile.specialization ?? "");
+        reset({
+          username: profile.username ?? "",
+          fullName: profile.fullName ?? "",
+          role: profile.role ?? "",
+          newPassword: "",
+          contactNumber: profile.contactNumber ?? "",
+          email: profile.email ?? "",
+          specialization: profile.specialization ?? "",
+        });
+      } catch (err) {
+        if (!cancelled) toast.error(getErrorMessage(err));
+      } finally {
+        if (!cancelled) setLoadingProfile(false);
+      }
+    };
+    void loadProfile();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const permissions = getEffectivePermissions(user);
   const roleLabel = user?.role ? ROLE_LABEL[user.role] : "";
@@ -70,6 +130,9 @@ export default function ProfilePage() {
       const res = await authService.updateProfile({
         username: data.username.trim(),
         fullName: data.fullName.trim(),
+        contactNumber: data.contactNumber?.trim() || undefined,
+        email: data.email?.trim() || undefined,
+        ...(isDentist ? { specialization: data.specialization?.trim() } : {}),
         ...(data.newPassword && data.newPassword.trim()
           ? { newPassword: data.newPassword.trim() }
           : {}),
@@ -82,11 +145,16 @@ export default function ProfilePage() {
           fullName: updated.fullName,
         });
       }
+      setProfileSpecialization(updated.specialization ?? "");
       toast.success("Profile updated successfully");
       reset({
         username: updated.username,
         fullName: updated.fullName,
+        role: updated.role ?? "",
         newPassword: "",
+        contactNumber: updated.contactNumber ?? "",
+        email: updated.email ?? "",
+        specialization: updated.specialization ?? "",
       });
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -166,6 +234,28 @@ export default function ProfilePage() {
                 placeholder="e.g. Nimal Perera"
                 error={errors.fullName?.message}
                 {...register("fullName")}
+              />
+              {isDentist && (
+                <Input
+                  label="Specialization"
+                  required
+                  placeholder="e.g. Orthodontics, Oral Surgery"
+                  error={errors.specialization?.message}
+                  {...register("specialization")}
+                />
+              )}
+              <Input
+                label="Contact Number"
+                placeholder="e.g. 0771234567"
+                error={errors.contactNumber?.message}
+                {...register("contactNumber")}
+              />
+              <Input
+                label="Email"
+                type="email"
+                placeholder="optional"
+                error={errors.email?.message}
+                {...register("email")}
               />
               <Input
                 label="New Password (leave blank to keep current)"

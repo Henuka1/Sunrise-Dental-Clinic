@@ -118,6 +118,20 @@ export interface ProfileUpdateRequest {
   username: string;
   fullName: string;
   newPassword?: string;
+  contactNumber?: string;
+  email?: string;
+  specialization?: string;
+}
+
+export interface UserProfileData {
+  userId: number;
+  username: string;
+  fullName: string;
+  role: "ADMIN" | "RECEPTIONIST" | "DENTIST";
+  contactNumber?: string;
+  email?: string;
+  dentistId?: number;
+  specialization?: string;
 }
 
 export interface DailyReportData {

@@ -8,6 +8,9 @@ public class ProfileUpdateRequestDTO {
     private String username;
     private String fullName;
     private String newPassword;
+    private String contactNumber;
+    private String email;
+    private String specialization;
 
     public ProfileUpdateRequestDTO() {}
 
@@ -17,4 +20,10 @@ public class ProfileUpdateRequestDTO {
     public void setFullName(String fullName) { this.fullName = fullName; }
     public String getNewPassword() { return newPassword; }
     public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
+    public String getContactNumber() { return contactNumber; }
+    public void setContactNumber(String contactNumber) { this.contactNumber = contactNumber; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getSpecialization() { return specialization; }
+    public void setSpecialization(String specialization) { this.specialization = specialization; }
 }

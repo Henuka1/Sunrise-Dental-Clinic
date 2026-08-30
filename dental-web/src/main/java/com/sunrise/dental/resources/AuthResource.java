@@ -132,11 +132,31 @@ public class AuthResource {
             if (newPassword != null && !newPassword.isEmpty() && newPassword.length() < 4) {
                 return ResponseUtil.badRequest("Password must be at least 4 characters");
             }
+            String newContact = dto.getContactNumber() == null ? null : dto.getContactNumber().trim();
+            if (!ValidationUtil.isNullOrEmpty(newContact)
+                    && !ValidationUtil.isValidPhone(newContact)) {
+                return ResponseUtil.badRequest("Invalid contact number");
+            }
+            String newEmail = dto.getEmail() == null ? null : dto.getEmail().trim();
+            if (!ValidationUtil.isNullOrEmpty(newEmail)
+                    && !ValidationUtil.isValidEmail(newEmail)) {
+                return ResponseUtil.badRequest("Invalid email address");
+            }
+            newContact = ValidationUtil.isNullOrEmpty(newContact) ? null : newContact;
+            newEmail = ValidationUtil.isNullOrEmpty(newEmail) ? null : newEmail;
+
+            boolean isDentist = "DENTIST".equals(loggedIn.getRole());
+            String newSpecialization = dto.getSpecialization() == null ? null : dto.getSpecialization().trim();
+            if (isDentist && ValidationUtil.isNullOrEmpty(newSpecialization)) {
+                return ResponseUtil.badRequest("Specialization is required for dentists");
+            }
 
             boolean updated = userDAO.updateOwnProfile(
                     loggedIn.getUserId(),
                     newUsername,
                     dto.getFullName().trim(),
+                    newContact,
+                    newEmail,
                     newPassword);
 
             if (!updated) {
@@ -146,7 +166,18 @@ public class AuthResource {
             // Reflect the change in the in-memory session (same object reference).
             loggedIn.setUsername(newUsername);
             loggedIn.setFullName(dto.getFullName().trim());
+            loggedIn.setContactNumber(newContact);
+            loggedIn.setEmail(newEmail);
             loggedIn.setPassword(null);
+
+            if (isDentist) {
+                // Keep the dentist record (specialization + contact) in sync.
+                dentistDAO.upsertDentist(
+                        loggedIn.getFullName(),
+                        newSpecialization,
+                        newContact,
+                        newEmail);
+            }
 
             User updatedUser = new User(
                     loggedIn.getUserId(),
@@ -156,11 +187,52 @@ public class AuthResource {
             updatedUser.setDentistId(loggedIn.getDentistId());
             updatedUser.setPermissions(loggedIn.getPermissions());
             updatedUser.setActive(loggedIn.isActive());
+            updatedUser.setContactNumber(loggedIn.getContactNumber());
+            updatedUser.setEmail(loggedIn.getEmail());
+            if (isDentist) {
+                updatedUser.setDentistId(dentistDAO.getDentistIdByFullName(loggedIn.getFullName()));
+                updatedUser.setSpecialization(newSpecialization);
+            }
 
             return ResponseUtil.success(new ApiResponseDTO(true,
                     "Profile updated successfully", updatedUser));
         } catch (Exception e) {
             return ResponseUtil.serverError("Profile update error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Returns the logged-in user's own profile, including the specialization
+     * for dentists, so the profile form can be prefilled.
+     */
+    @GET
+    @Path("profile")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getProfile(@Context HttpServletRequest request) {
+        User loggedIn = getLoggedInUser(request);
+        if (loggedIn == null) {
+            return ResponseUtil.unauthorized("Unauthorized - Please log in");
+        }
+        try {
+            User profile = new User(
+                    loggedIn.getUserId(),
+                    loggedIn.getUsername(),
+                    loggedIn.getFullName(),
+                    loggedIn.getRole());
+            profile.setContactNumber(loggedIn.getContactNumber());
+            profile.setEmail(loggedIn.getEmail());
+            profile.setDentistId(loggedIn.getDentistId());
+            if ("DENTIST".equals(loggedIn.getRole())) {
+                com.sunrise.dental.model.Dentist dentist =
+                        dentistDAO.getDentistByFullName(loggedIn.getFullName());
+                if (dentist != null) {
+                    profile.setDentistId(dentist.getDentistId());
+                    profile.setSpecialization(dentist.getSpecialization());
+                }
+            }
+            return ResponseUtil.success(new ApiResponseDTO(true, "Profile retrieved", profile));
+        } catch (Exception e) {
+            return ResponseUtil.serverError("Profile error: " + e.getMessage());
         }
     }
 }
