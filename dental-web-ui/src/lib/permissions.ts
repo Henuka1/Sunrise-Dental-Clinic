@@ -39,6 +39,7 @@ export const PATH_MODULE: Record<string, ModuleKey> = {
   "/patients/new": "patients",
   "/appointments": "appointments",
   "/appointments/new": "appointments",
+  "/dentist/available": "appointments",
   "/search": "appointments",
   "/billing": "billing",
     "/reports": "reports",

@@ -37,6 +37,7 @@ const ROLE_ACCESS: Record<UserRole, string[]> = {
   ],
   DENTIST: [
     "/dashboard",
+    "/dentist/available",
     "/appointments",
     "/patients",
     "/search",

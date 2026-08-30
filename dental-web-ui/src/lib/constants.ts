@@ -55,6 +55,7 @@ export const NAV_LINKS: Record<UserRole, { to: string; label: string }[]> = {
   ],
   DENTIST: [
     { to: "/dashboard", label: "Dashboard" },
+    { to: "/dentist/available", label: "Dentist Available" },
     { to: "/appointments", label: "My Appointments" },
     { to: "/search", label: "Search" },
     { to: "/patients", label: "Patient History" },

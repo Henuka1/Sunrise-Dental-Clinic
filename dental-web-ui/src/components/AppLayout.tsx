@@ -28,6 +28,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/patients/new": UserRoundPlus,
   "/patients": History,
   "/appointments/new": CalendarPlus,
+  "/dentist/available": CalendarCheck2,
   "/appointments": CalendarCheck2,
   "/search": Search,
   "/billing": ReceiptText,
