@@ -47,10 +47,7 @@ public class AuthResource {
             User user = userDAO.authenticate(request.getUsername(), request.getPassword());
 
             if (user == null) {
-                LoginResponseDTO response = new LoginResponseDTO();
-                response.setSuccess(false);
-                response.setMessage("Invalid username or password");
-                return ResponseUtil.unauthorized(gson.toJson(response));
+                return ResponseUtil.unauthorized("Invalid username or password");
             }
 
             // Account exists with correct credentials but has been deactivated.

@@ -26,9 +26,13 @@ api.interceptors.response.use(
   (res) => res,
   (err: AxiosError) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem(STORAGE_KEYS.TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.USER);
-      window.location.href = "/";
+      // Don't auto-redirect on login — let the LoginPage show the error toast.
+      const isLoginRequest = err.config?.url?.includes("/auth/login");
+      if (!isLoginRequest) {
+        localStorage.removeItem(STORAGE_KEYS.TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.USER);
+        window.location.href = "/";
+      }
     }
     return Promise.reject(err);
   }
