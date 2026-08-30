@@ -17,8 +17,19 @@ import java.util.List;
 public class DentistDAO {
 
     public List<Dentist> getAllDentists() {
+        return getAllDentists(false);
+    }
+
+    /**
+     * Returns dentists from the dentists table. When includeInactive is true,
+     * soft-deactivated dentists (is_active = FALSE) are returned as well so
+     * callers can display them as unavailable.
+     */
+    public List<Dentist> getAllDentists(boolean includeInactive) {
         List<Dentist> dentists = new ArrayList<>();
-        String sql = "SELECT * FROM dentists WHERE is_active = TRUE";
+        String sql = includeInactive
+                ? "SELECT * FROM dentists"
+                : "SELECT * FROM dentists WHERE is_active = TRUE";
         try (Connection conn = DBConnection.getInstance().getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {

@@ -340,6 +340,13 @@ public class UserResource {
                 return ResponseUtil.badRequest("Failed to update active status");
             }
 
+            // Keep the dentist record in sync: a deactivated DENTIST account
+            // must also be marked inactive in the dentists table so they no
+            // longer appear as an available choice when booking appointments.
+            if ("DENTIST".equals(existing.getRole())) {
+                dentistDAO.setDentistActiveByName(existing.getFullName(), dto.isActive());
+            }
+
             existing.setActive(dto.isActive());
             return ResponseUtil.success(new ApiResponseDTO(true,
                 dto.isActive()

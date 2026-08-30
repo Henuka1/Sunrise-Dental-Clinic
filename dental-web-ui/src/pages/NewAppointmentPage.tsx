@@ -63,7 +63,7 @@ export default function NewAppointmentPage() {
     const loadMeta = async () => {
       try {
         const [dentistRes, treatmentRes] = await Promise.all([
-          dentistService.getAll(),
+          dentistService.getAll({ includeInactive: true }),
           treatmentService.getAll(),
         ]);
         setDentists(dentistRes.data.data || []);
@@ -224,7 +224,10 @@ export default function NewAppointmentPage() {
                 placeholder="Select dentist"
                 options={dentists.map((d) => ({
                   value: d.dentistId,
-                  label: `Dr. ${d.dentistName} — ${d.specialization}`,
+                  label: d.isActive === false
+                    ? `Dr. ${d.dentistName} — ${d.specialization} (Unavailable)`
+                    : `Dr. ${d.dentistName} — ${d.specialization}`,
+                  disabled: d.isActive === false,
                 }))}
                 error={aptErrors.dentistId?.message}
                 {...registerApt("dentistId")}

@@ -23,8 +23,9 @@ public class DentistResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getAllDentists() {
-        return ResponseUtil.success(new ApiResponseDTO(true, "Dentists retrieved", dentistDAO.getAllDentists()));
+    public Response getAllDentists(@QueryParam("includeInactive") boolean includeInactive) {
+        return ResponseUtil.success(new ApiResponseDTO(true, "Dentists retrieved",
+                dentistDAO.getAllDentists(includeInactive)));
     }
 
     @GET

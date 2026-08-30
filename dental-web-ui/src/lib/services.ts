@@ -48,7 +48,8 @@ export const patientService = {
 };
 
 export const dentistService = {
-  getAll: () => api.get<ApiResponse<Dentist[]>>("/dentists"),
+  getAll: (params?: { includeInactive?: boolean }) =>
+    api.get<ApiResponse<Dentist[]>>("/dentists", { params }),
   getById: (id: number) => api.get<ApiResponse<Dentist>>(`/dentists/${id}`),
 };
 
