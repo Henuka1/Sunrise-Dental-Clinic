@@ -61,6 +61,11 @@ const ROLE_OPTIONS = [
   { value: "ADMIN", label: "Administrator" },
 ];
 
+const ROLE_FILTER_OPTIONS = [
+  { value: "", label: "All Roles" },
+  ...ROLE_OPTIONS,
+];
+
 function RoleIcon({ role }: { role: string }) {
   if (role === "ADMIN") {
     return (
@@ -96,6 +101,7 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   const [editing, setEditing] = useState<ManagedUser | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -103,6 +109,10 @@ export default function UserManagementPage() {
   const [deleting, setDeleting] = useState(false);
   const [toToggle, setToToggle] = useState<ManagedUser | null>(null);
   const [toggling, setToggling] = useState(false);
+
+  const filteredUsers = roleFilter
+    ? users.filter((u) => u.role === roleFilter)
+    : users;
 
   const {
     register,
@@ -280,45 +290,154 @@ export default function UserManagementPage() {
           }
         />
       ) : (
-        <Card noPadding>
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] uppercase tracking-wide text-slate-500">
-                  <th className="px-6 py-3 font-semibold">User</th>
-                  <th className="px-6 py-3 font-semibold">Role</th>
-                  <th className="px-6 py-3 font-semibold">Status</th>
-                  <th className="px-6 py-3 font-semibold">Created</th>
-                  <th className="px-6 py-3 text-right font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {users.map((user) => (
-                  <tr
-                    key={user.userId}
-                    className={
-                      "transition-colors hover:bg-slate-50/60" +
-                      (user.isActive === false ? " opacity-60" : "")
-                    }
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <RoleIcon role={user.role} />
-                        <div>
-                          <p className="font-medium text-slate-900">{user.fullName}</p>
-                          <p className="text-xs text-slate-500">@{user.username}</p>
-                          {user.specialization && (
-                            <p className="text-xs text-teal-600">{user.specialization}</p>
-                          )}
-                          {(user.contactNumber || user.email) && (
-                            <p className="text-xs text-slate-500">
-                              {[user.contactNumber, user.email].filter(Boolean).join(" · ")}
-                            </p>
+        <>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Select
+                id="roleFilter"
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                options={ROLE_FILTER_OPTIONS}
+                className="w-full sm:w-48"
+              />
+            </div>
+            {roleFilter && (
+              <span className="text-sm text-slate-500">
+                Showing {filteredUsers.length} of {users.length} users
+              </span>
+            )}
+          </div>
+          <Card noPadding>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] uppercase tracking-wide text-slate-500">
+                    <th className="px-6 py-3 font-semibold">User</th>
+                    <th className="px-6 py-3 font-semibold">Role</th>
+                    <th className="px-6 py-3 font-semibold">Status</th>
+                    <th className="px-6 py-3 font-semibold">Created</th>
+                    <th className="px-6 py-3 text-right font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredUsers.map((user) => (
+                    <tr
+                      key={user.userId}
+                      className={
+                        "transition-colors hover:bg-slate-50/60" +
+                        (user.isActive === false ? " opacity-60" : "")
+                      }
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <RoleIcon role={user.role} />
+                          <div>
+                            <p className="font-medium text-slate-900">{user.fullName}</p>
+                            <p className="text-xs text-slate-500">@{user.username}</p>
+                            {user.specialization && (
+                              <p className="text-xs text-teal-600">{user.specialization}</p>
+                            )}
+                            {(user.contactNumber || user.email) && (
+                              <p className="text-xs text-slate-500">
+                                {[user.contactNumber, user.email].filter(Boolean).join(" · ")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={
+                            "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
+                            roleBadgeClass(user.role)
+                          }
+                        >
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={
+                            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
+                            (user.isActive === false
+                              ? "border-red-200 bg-red-50 text-red-700"
+                              : "border-green-200 bg-green-50 text-green-700")
+                          }
+                        >
+                          <span
+                            className={
+                              "h-1.5 w-1.5 rounded-full " +
+                              (user.isActive === false ? "bg-red-500" : "bg-green-500")
+                            }
+                          />
+                          {user.isActive === false ? "Inactive" : "Active"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        {user.createdAt ? formatDate(user.createdAt) : "-"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          {isAdmin ? (
+                            <>
+                              <Button
+                                variant={user.isActive === false ? "primary" : "outline"}
+                                size="sm"
+                                onClick={() => setToToggle(user)}
+                                disabled={user.userId === currentUserId}
+                              >
+                                {user.isActive === false ? (
+                                  <PlayCircle className="h-3.5 w-3.5" />
+                                ) : (
+                                  <PauseCircle className="h-3.5 w-3.5" />
+                                )}
+                                {user.isActive === false ? "Activate" : "Deactivate"}
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                                Edit
+                              </Button>
+                              <Button variant="danger" size="sm" onClick={() => setToDelete(user)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Delete
+                              </Button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-400">View only</span>
                           )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          </div>
+
+          <div className="divide-y divide-slate-100 md:hidden">
+              {filteredUsers.map((user) => (
+                <div
+                  key={user.userId}
+                  className={
+                    "space-y-3 px-5 py-4" + (user.isActive === false ? " opacity-60" : "")
+                  }
+                >
+                  <div className="flex items-center gap-3">
+                    <RoleIcon role={user.role} />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-900">{user.fullName}</p>
+                      <p className="truncate text-xs text-slate-500">@{user.username}</p>
+                      {user.specialization && (
+                        <p className="truncate text-xs text-teal-600">{user.specialization}</p>
+                      )}
+                      {(user.contactNumber || user.email) && (
+                        <p className="truncate text-xs text-slate-500">
+                          {[user.contactNumber, user.email].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
                       <span
                         className={
                           "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
@@ -327,8 +446,6 @@ export default function UserManagementPage() {
                       >
                         {user.role}
                       </span>
-                    </td>
-                    <td className="px-6 py-4">
                       <span
                         className={
                           "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
@@ -345,128 +462,39 @@ export default function UserManagementPage() {
                         />
                         {user.isActive === false ? "Inactive" : "Active"}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">
-                      {user.createdAt ? formatDate(user.createdAt) : "-"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        {isAdmin ? (
-                          <>
-                            <Button
-                              variant={user.isActive === false ? "primary" : "outline"}
-                              size="sm"
-                              onClick={() => setToToggle(user)}
-                              disabled={user.userId === currentUserId}
-                            >
-                              {user.isActive === false ? (
-                                <PlayCircle className="h-3.5 w-3.5" />
-                              ) : (
-                                <PauseCircle className="h-3.5 w-3.5" />
-                              )}
-                              {user.isActive === false ? "Activate" : "Deactivate"}
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edit
-                            </Button>
-                            <Button variant="danger" size="sm" onClick={() => setToDelete(user)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
-                            </Button>
-                          </>
-                        ) : (
-                          <span className="text-xs text-slate-400">View only</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="divide-y divide-slate-100 md:hidden">
-            {users.map((user) => (
-              <div
-                key={user.userId}
-                className={
-                  "space-y-3 px-5 py-4" + (user.isActive === false ? " opacity-60" : "")
-                }
-              >
-                <div className="flex items-center gap-3">
-                  <RoleIcon role={user.role} />
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-900">{user.fullName}</p>
-                    <p className="truncate text-xs text-slate-500">@{user.username}</p>
-                    {user.specialization && (
-                      <p className="truncate text-xs text-teal-600">{user.specialization}</p>
-                    )}
-                    {(user.contactNumber || user.email) && (
-                      <p className="truncate text-xs text-slate-500">
-                        {[user.contactNumber, user.email].filter(Boolean).join(" · ")}
-                      </p>
-                    )}
+                    </div>
+                    <div className="flex gap-2">
+                      {isAdmin ? (
+                        <>
+                          <Button
+                            variant={user.isActive === false ? "primary" : "outline"}
+                            size="sm"
+                            onClick={() => setToToggle(user)}
+                            disabled={user.userId === currentUserId}
+                          >
+                            {user.isActive === false ? (
+                              <PlayCircle className="h-3.5 w-3.5" />
+                            ) : (
+                              <PauseCircle className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => setToDelete(user)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      ) : (
+                        <span className="text-xs text-slate-400">View only</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={
-                        "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
-                        roleBadgeClass(user.role)
-                      }
-                    >
-                      {user.role}
-                    </span>
-                    <span
-                      className={
-                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide " +
-                        (user.isActive === false
-                          ? "border-red-200 bg-red-50 text-red-700"
-                          : "border-green-200 bg-green-50 text-green-700")
-                      }
-                    >
-                      <span
-                        className={
-                          "h-1.5 w-1.5 rounded-full " +
-                          (user.isActive === false ? "bg-red-500" : "bg-green-500")
-                        }
-                      />
-                      {user.isActive === false ? "Inactive" : "Active"}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    {isAdmin ? (
-                      <>
-                        <Button
-                          variant={user.isActive === false ? "primary" : "outline"}
-                          size="sm"
-                          onClick={() => setToToggle(user)}
-                          disabled={user.userId === currentUserId}
-                        >
-                          {user.isActive === false ? (
-                            <PlayCircle className="h-3.5 w-3.5" />
-                          ) : (
-                            <PauseCircle className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => setToDelete(user)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
-                    ) : (
-                      <span className="text-xs text-slate-400">View only</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+              ))}
+            </div>
+          </Card>
+        </>
       )}
 
       {/* Add / Edit modal */}
