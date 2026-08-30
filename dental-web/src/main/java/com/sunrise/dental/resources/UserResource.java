@@ -259,6 +259,14 @@ public class UserResource {
             if (!deleted) {
                 return ResponseUtil.badRequest("Failed to delete user");
             }
+
+            // When a DENTIST user is deleted, also remove the matching
+            // dentist record from the dentists table so the clinic's
+            // dentist list stays in sync with user accounts.
+            if ("DENTIST".equals(existing.getRole())) {
+                dentistDAO.deleteDentistByName(existing.getFullName());
+            }
+
             return ResponseUtil.success(new ApiResponseDTO(true, "User deleted successfully", null));
         } catch (Exception e) {
             return ResponseUtil.serverError("Error: " + e.getMessage());

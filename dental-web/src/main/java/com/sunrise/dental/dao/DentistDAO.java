@@ -121,6 +121,26 @@ public class DentistDAO {
     }
 
     /**
+     * Deletes the dentist record that matches the given name.
+     * Used when a DENTIST user account is deleted from user management
+     * so the clinic's dentist list stays in sync.
+     */
+    public boolean deleteDentistByName(String dentistName) {
+        if (dentistName == null || dentistName.trim().isEmpty()) {
+            return false;
+        }
+        String sql = "DELETE FROM dentists WHERE dentist_name = ?";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, dentistName.trim());
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
      * Renames a dentist record (used when a DENTIST user account changes its
      * full name so the dentist record keeps pointing at the same account).
      */
