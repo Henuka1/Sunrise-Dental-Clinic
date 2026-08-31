@@ -53,7 +53,7 @@ export interface Appointment {
   treatmentName: string;
   appointmentDate: string;
   appointmentTime: string;
-  status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
+  status: "SCHEDULED" | "CHECKED_IN" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
   notes?: string;
   createdAt?: string;
 }

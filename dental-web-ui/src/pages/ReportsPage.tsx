@@ -54,6 +54,7 @@ type ReportTab = "daily" | "revenue" | "dentist";
 
 const STATUS_LABELS: Record<string, string> = {
   SCHEDULED: "Scheduled",
+  CHECKED_IN: "Checked In",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
   NO_SHOW: "No Show",
@@ -71,7 +72,7 @@ function countBy(items: Appointment[], keyFn: (item: Appointment) => string): Ch
 }
 
 function statusSlices(appointments: Appointment[]): ChartDatum[] {
-  const order = ["COMPLETED", "SCHEDULED", "CANCELLED", "NO_SHOW"];
+  const order = ["COMPLETED", "SCHEDULED", "CHECKED_IN", "CANCELLED", "NO_SHOW"];
   return order
     .map((status) => ({
       label: STATUS_LABELS[status] ?? status,

@@ -59,6 +59,7 @@ const dentistHelpTopics = [
       "Use the date and status filters to narrow down the list.",
       "Click the checkmark icon to mark an appointment as completed.",
       "Click the no-show icon (person with a slash) to mark a patient as a no-show.",
+      "Use the check-in icon to place a scheduled appointment into the checked-in state.",
     ],
   },
   {
@@ -66,7 +67,7 @@ const dentistHelpTopics = [
     title: "Updating Appointment Status",
     steps: [
       "Open 'My Appointments'.",
-      "For any SCHEDULED appointment, you can choose Mark Complete or Mark No-Show.",
+      "For any SCHEDULED appointment, you can choose Check In, Mark Complete or Mark No-Show.",
       "You cannot cancel appointments or edit their details — only Receptionist/Admin can.",
     ],
   },

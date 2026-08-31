@@ -14,6 +14,7 @@ export const CHART_PALETTE = [
 export const STATUS_CHART_COLORS: Record<string, string> = {
   SCHEDULED: "#3b82f6",
   COMPLETED: "#10b981",
+  CHECKED_IN: "#8b5cf6",
   CANCELLED: "#ef4444",
   NO_SHOW: "#f59e0b",
 };

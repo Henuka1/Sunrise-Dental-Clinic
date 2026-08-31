@@ -122,6 +122,8 @@ export const appointmentService = {
     api.put<ApiResponse<Appointment>>(`/appointments/${id}/complete`, { notes }),
   noShow: (id: number, notes?: string) =>
     api.put<ApiResponse<Appointment>>(`/appointments/${id}/no-show`, { notes }),
+  checkIn: (id: number, notes?: string) =>
+    api.put<ApiResponse<Appointment>>(`/appointments/${id}/check-in`, { notes }),
 };
 
 export const billingService = {

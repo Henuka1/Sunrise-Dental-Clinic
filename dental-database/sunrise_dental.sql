@@ -140,6 +140,7 @@ CREATE TABLE IF NOT EXISTS appointments (
 
     status ENUM(
         'SCHEDULED',
+        'CHECKED_IN',
         'COMPLETED',
         'CANCELLED',
         'NO_SHOW'

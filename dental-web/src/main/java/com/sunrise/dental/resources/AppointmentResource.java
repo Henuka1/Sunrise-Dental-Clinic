@@ -242,6 +242,29 @@ public class AppointmentResource {
         }
     }
 
+    @PUT
+    @Path("{id}/check-in")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response checkInAppointment(@Context HttpServletRequest request, @PathParam("id") int id, String json) {
+        User dentist = getLoggedInUser(request);
+        if (isDentist(dentist) && !ownsAppointment(dentist, id)) {
+            return ResponseUtil.notFound("Appointment not found");
+        }
+        try {
+            Appointment requestJson = json == null || json.trim().isEmpty()
+                    ? new Appointment()
+                    : gson.fromJson(json, Appointment.class);
+            boolean updated = appointmentDAO.updateAppointmentStatus(id, "CHECKED_IN", requestJson.getNotes());
+            if (!updated) {
+                return ResponseUtil.badRequest("Failed to check in appointment");
+            }
+            return ResponseUtil.success(new ApiResponseDTO(true, "Appointment checked in successfully", null));
+        } catch (Exception e) {
+            return ResponseUtil.serverError("Error: " + e.getMessage());
+        }
+    }
+
     private boolean ownsAppointment(User dentist, int appointmentId) {
         if (dentist == null || dentist.getDentistId() <= 0) return false;
         Appointment apt = appointmentDAO.getAppointmentById(appointmentId);

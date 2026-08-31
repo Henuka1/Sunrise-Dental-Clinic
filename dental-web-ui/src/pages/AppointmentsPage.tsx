@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Calendar, Plus, XCircle, CheckCircle, UserX } from "lucide-react";
+import { Calendar, Plus, XCircle, CheckCircle, UserX, UserCheck } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -86,6 +86,19 @@ export default function AppointmentsPage() {
     }
   };
 
+  const handleCheckIn = async (apt: Appointment) => {
+    setUpdating(apt.appointmentId);
+    try {
+      await appointmentService.checkIn(apt.appointmentId);
+      toast.success("Appointment checked in");
+      load();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -119,6 +132,7 @@ export default function AppointmentsPage() {
             onChange={(e) => setFilterStatus(e.target.value)}
             options={[
               { value: "SCHEDULED", label: "Scheduled" },
+              { value: "CHECKED_IN", label: "Checked In" },
               { value: "COMPLETED", label: "Completed" },
               { value: "CANCELLED", label: "Cancelled" },
               { value: "NO_SHOW", label: "No Show" },
@@ -192,8 +206,20 @@ export default function AppointmentsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
-                        {apt.status === "SCHEDULED" && (
+                        {(apt.status === "SCHEDULED" || apt.status === "CHECKED_IN") && (
                           <>
+                            {apt.status === "SCHEDULED" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCheckIn(apt)}
+                                loading={updating === apt.appointmentId}
+                                className="text-sky-600 hover:bg-sky-50"
+                                title="Check In"
+                              >
+                                <UserCheck className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -205,16 +231,18 @@ export default function AppointmentsPage() {
                               <CheckCircle className="h-4 w-4" />
                             </Button>
                             {isDentist ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleNoShow(apt)}
-                                loading={updating === apt.appointmentId}
-                                className="text-amber-600 hover:bg-amber-50"
-                                title="Mark No-Show"
-                              >
-                                <UserX className="h-4 w-4" />
-                              </Button>
+                              apt.status === "SCHEDULED" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleNoShow(apt)}
+                                  loading={updating === apt.appointmentId}
+                                  className="text-amber-600 hover:bg-amber-50"
+                                  title="Mark No-Show"
+                                >
+                                  <UserX className="h-4 w-4" />
+                                </Button>
+                              )
                             ) : (
                               <Button
                                 variant="ghost"

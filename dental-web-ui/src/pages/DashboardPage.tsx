@@ -83,7 +83,7 @@ export default function DashboardPage() {
     scheduled: appointments.filter((a) => a.status === "SCHEDULED").length,
     completed: appointments.filter((a) => a.status === "COMPLETED").length,
     cancelled: appointments.filter((a) => a.status === "CANCELLED").length,
-    pending: appointments.filter((a) => a.status === "SCHEDULED" || a.status === "NO_SHOW").length,
+    pending: appointments.filter((a) => a.status === "SCHEDULED" || a.status === "CHECKED_IN" || a.status === "NO_SHOW").length,
     patients: new Set(appointments.map((a) => a.patientId)).size,
   };
 
