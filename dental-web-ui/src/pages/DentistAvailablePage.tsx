@@ -1007,7 +1007,6 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
       slotMinutes: r.slotMinutes ?? 30,
       reason: r.reason ?? "",
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const cancelEdit = () => {
