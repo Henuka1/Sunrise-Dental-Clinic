@@ -292,6 +292,19 @@ public class AppointmentDAO {
         return false;
     }
 
+    public boolean updateNotes(int id, String notes) {
+        String sql = "UPDATE appointments SET notes = ? WHERE appointment_id = ?";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, notes);
+            ps.setInt(2, id);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public String getLastAppointmentNumber() {
         String sql = "SELECT appointment_number FROM appointments ORDER BY appointment_id DESC LIMIT 1";
         try (Connection conn = DBConnection.getInstance().getConnection();

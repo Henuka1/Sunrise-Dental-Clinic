@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Calendar, Plus, XCircle, CheckCircle, UserX, UserCheck, Search } from "lucide-react";
+import { Calendar, Plus, XCircle, CheckCircle, UserX, UserCheck, Search, StickyNote } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -12,6 +12,7 @@ import Spinner from "@/components/ui/Spinner";
 import ErrorState from "@/components/ErrorState";
 import EmptyState, { TableLoading } from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import NotesModal from "@/components/NotesModal";
 import { useAuth } from "@/context/AuthContext";
 import { appointmentService } from "@/lib/services";
 import { getTodayString, formatDate, formatTime, getErrorMessage } from "@/lib/utils";
@@ -27,6 +28,7 @@ export default function AppointmentsPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
+  const [noteTarget, setNoteTarget] = useState<Appointment | null>(null);
   const [updating, setUpdating] = useState<number | null>(null);
 
   const load = async () => {
@@ -213,6 +215,7 @@ export default function AppointmentsPage() {
                   <th className="px-6 py-3 font-medium">Date</th>
                   <th className="px-6 py-3 font-medium">Time</th>
                   <th className="px-6 py-3 font-medium">Status</th>
+                  <th className="px-6 py-3 font-medium">Notes</th>
                   <th className="px-6 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
@@ -229,6 +232,16 @@ export default function AppointmentsPage() {
                     <td className="px-6 py-4 text-slate-600">{formatTime(apt.appointmentTime)}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={apt.status} />
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => setNoteTarget(apt)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
+                        title="View / edit notes"
+                      >
+                        <StickyNote className="h-3.5 w-3.5" />
+                        {apt.notes ? "View" : "Add"}
+                      </button>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
@@ -300,6 +313,12 @@ export default function AppointmentsPage() {
         variant="danger"
         onConfirm={handleCancel}
         onCancel={() => setCancelTarget(null)}
+      />
+
+      <NotesModal
+        open={!!noteTarget}
+        appointment={noteTarget}
+        onClose={() => setNoteTarget(null)}
       />
     </div>
   );

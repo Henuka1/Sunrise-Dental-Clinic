@@ -243,6 +243,29 @@ public class AppointmentResource {
     }
 
     @PUT
+    @Path("{id}/notes")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response updateAppointmentNotes(@Context HttpServletRequest request, @PathParam("id") int id, String json) {
+        User dentist = getLoggedInUser(request);
+        if (isDentist(dentist) && !ownsAppointment(dentist, id)) {
+            return ResponseUtil.notFound("Appointment not found");
+        }
+        try {
+            Appointment requestJson = json == null || json.trim().isEmpty()
+                    ? new Appointment()
+                    : gson.fromJson(json, Appointment.class);
+            boolean updated = appointmentDAO.updateNotes(id, requestJson.getNotes());
+            if (!updated) {
+                return ResponseUtil.badRequest("Failed to update notes");
+            }
+            return ResponseUtil.success(new ApiResponseDTO(true, "Appointment notes updated", null));
+        } catch (Exception e) {
+            return ResponseUtil.serverError("Error: " + e.getMessage());
+        }
+    }
+
+    @PUT
     @Path("{id}/check-in")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
