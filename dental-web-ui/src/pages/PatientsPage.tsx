@@ -8,7 +8,7 @@ import ErrorState from "@/components/ErrorState";
 import EmptyState from "@/components/EmptyState";
 import { appointmentService, patientService } from "@/lib/services";
 import { formatDate, formatTime, getErrorMessage } from "@/lib/utils";
-import type { Appointment } from "@/types";
+import type { Appointment, Treatment } from "@/types";
 
 interface PatientSummary {
   patientId: number;
@@ -24,6 +24,7 @@ export default function PatientsPage() {
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [history, setHistory] = useState<Appointment[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [additionalMap, setAdditionalMap] = useState<Record<number, Treatment[]>>({});
 
   const load = async () => {
     setLoading(true);
@@ -71,6 +72,22 @@ export default function PatientsPage() {
       const list =
         payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
       setHistory(Array.isArray(list) ? list : []);
+      // Fetch additional treatments for each appointment in the history.
+      const map: Record<number, Treatment[]> = {};
+      await Promise.all(
+        (Array.isArray(list) ? list : []).map(async (apt: Appointment) => {
+          try {
+            const tRes = await appointmentService.getAdditionalTreatments(apt.appointmentId);
+            const tPayload = tRes.data as any;
+            const tList =
+              tPayload && typeof tPayload === "object" && "data" in tPayload ? tPayload.data : tPayload;
+            map[apt.appointmentId] = Array.isArray(tList) ? tList : [];
+          } catch {
+            map[apt.appointmentId] = [];
+          }
+        })
+      );
+      setAdditionalMap(map);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -153,6 +170,12 @@ return (
                           {formatTime(apt.appointmentTime)}
                         </span>
                       </p>
+                      {(additionalMap[apt.appointmentId]?.length ?? 0) > 0 && (
+                        <p className="mt-1 text-xs text-teal-700">
+                          <span className="font-medium">Additional Treatments:</span>{" "}
+                          {additionalMap[apt.appointmentId].map((t) => t.treatmentName).join(", ")}
+                        </p>
+                      )}
                     </div>
                     <StatusBadge status={apt.status} />
                   </div>
