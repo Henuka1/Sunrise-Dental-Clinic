@@ -17,6 +17,7 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [selectedMethods, setSelectedMethods] = useState<Record<number, "CASH" | "CARD" | "ONLINE">>({});
 
   const load = async () => {
     setLoading(true);
@@ -170,14 +171,32 @@ export default function BillingPage() {
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
                         {bill.paymentStatus !== "PAID" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-green-600 hover:bg-green-50"
-                            onClick={() => handleUpdatePayment(bill, "PAID", "CASH")}
-                          >
-                            Mark Paid
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <select
+                              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:border-teal-500 focus:outline-none"
+                              value={selectedMethods[bill.billId] || "CASH"}
+                              onChange={(e) =>
+                                setSelectedMethods((prev) => ({
+                                  ...prev,
+                                  [bill.billId]: e.target.value as "CASH" | "CARD" | "ONLINE",
+                                }))
+                              }
+                            >
+                              <option value="CASH">Cash</option>
+                              <option value="CARD">Card</option>
+                              <option value="ONLINE">Online</option>
+                            </select>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-green-600 hover:bg-green-50"
+                              onClick={() =>
+                                handleUpdatePayment(bill, "PAID", selectedMethods[bill.billId] || "CASH")
+                              }
+                            >
+                              Mark Paid
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </td>
