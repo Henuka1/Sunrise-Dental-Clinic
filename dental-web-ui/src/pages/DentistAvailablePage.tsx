@@ -16,6 +16,7 @@ import {
   Trash2,
   Timer,
   Ban,
+  Pencil,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -883,6 +884,7 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({
     startDate: getTodayString(),
     endDate: getTodayString(),
@@ -924,21 +926,32 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
       return;
     }
     setSaving(true);
+    const payload = {
+      dentistId,
+      startDate: form.startDate,
+      endDate: form.endDate,
+      startTime: form.startTime.replace(/\s/g, ""),
+      endTime: form.endTime.replace(/\s/g, ""),
+      isAvailable: form.isAvailable,
+      reason: form.reason.trim() || undefined,
+    };
     try {
-      await availabilityService.addDateRange(dentistId, {
-        dentistId,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        startTime: form.startTime.replace(/\s/g, ""),
-        endTime: form.endTime.replace(/\s/g, ""),
-        isAvailable: form.isAvailable,
-        reason: form.reason.trim() || undefined,
-      });
-      toast.success(
-        form.isAvailable
-          ? `Availability added for ${formatDate(form.startDate)} – ${formatDate(form.endDate)}`
-          : `Dates blocked: ${formatDate(form.startDate)} – ${formatDate(form.endDate)}`
-      );
+      if (editingId != null) {
+        await availabilityService.updateDateRange(dentistId, editingId, payload);
+        toast.success(
+          form.isAvailable
+            ? `Availability updated for ${formatDate(form.startDate)} – ${formatDate(form.endDate)}`
+            : `Blocked dates updated: ${formatDate(form.startDate)} – ${formatDate(form.endDate)}`
+        );
+        setEditingId(null);
+      } else {
+        await availabilityService.addDateRange(dentistId, payload);
+        toast.success(
+          form.isAvailable
+            ? `Availability added for ${formatDate(form.startDate)} – ${formatDate(form.endDate)}`
+            : `Dates blocked: ${formatDate(form.startDate)} – ${formatDate(form.endDate)}`
+        );
+      }
       setForm((f) => ({ ...f, reason: "" }));
       load();
       onChanged();
@@ -947,6 +960,31 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
     } finally {
       setSaving(false);
     }
+  };
+
+  const startEdit = (r: DentistDateAvailability) => {
+    setEditingId(r.dateAvailabilityId ?? null);
+    setForm({
+      startDate: r.startDate,
+      endDate: r.endDate,
+      startTime: r.startTime,
+      endTime: r.endTime,
+      isAvailable: r.isAvailable,
+      reason: r.reason ?? "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm({
+      startDate: getTodayString(),
+      endDate: getTodayString(),
+      startTime: "09:00",
+      endTime: "17:00",
+      isAvailable: true,
+      reason: "",
+    });
   };
 
   const handleCancel = async (id: number) => {
@@ -975,6 +1013,22 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
         }
         description="Add extra hours, special working days or block vacation dates. Overrides your weekly schedule."
       />
+
+      {/* Editing banner */}
+      {editingId != null && (
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
+          <p className="flex items-center gap-2 text-sm font-medium text-amber-800">
+            <Pencil className="h-4 w-4" />
+            Editing an existing availability entry — change the values and update.
+          </p>
+          <button
+            onClick={cancelEdit}
+            className="rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+          >
+            Discard
+          </button>
+        </div>
+      )}
 
       {/* Add form */}
       <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1042,11 +1096,16 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
           />
         </label>
-        <div className="flex items-end">
+        <div className="flex items-end gap-2">
           <Button onClick={handleAdd} disabled={saving || !dentistId} className="w-full sm:w-auto">
-            <CalendarPlus className="h-4 w-4" />
-            {saving ? "Adding..." : "Add Availability"}
+            {editingId != null ? <Pencil className="h-4 w-4" /> : <CalendarPlus className="h-4 w-4" />}
+            {saving ? "Saving..." : editingId != null ? "Update Changes" : "Add Availability"}
           </Button>
+          {editingId != null && (
+            <Button variant="outline" onClick={cancelEdit} disabled={saving}>
+              Cancel
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1090,14 +1149,24 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
                   {r.reason ? ` • ${r.reason}` : ""}
                 </p>
               </div>
-              <button
-                onClick={() => handleCancel(r.dateAvailabilityId!)}
-                disabled={cancellingId === r.dateAvailabilityId}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                {cancellingId === r.dateAvailabilityId ? "Cancelling..." : "Cancel"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => startEdit(r)}
+                  disabled={editingId === r.dateAvailabilityId}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-white px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  {editingId === r.dateAvailabilityId ? "Editing..." : "Edit"}
+                </button>
+                <button
+                  onClick={() => handleCancel(r.dateAvailabilityId!)}
+                  disabled={cancellingId === r.dateAvailabilityId}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {cancellingId === r.dateAvailabilityId ? "Cancelling..." : "Delete"}
+                </button>
+              </div>
             </div>
           ))
         )}

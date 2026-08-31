@@ -76,6 +76,15 @@ export const availabilityService = {
     api.delete<ApiResponse<import("@/types").DentistDateAvailability[]>>(
       `/dentists/${dentistId}/date-availability/${dateAvailabilityId}`
     ),
+  updateDateRange: (
+    dentistId: number,
+    dateAvailabilityId: number,
+    data: Partial<import("@/types").DentistDateAvailability>
+  ) =>
+    api.put<ApiResponse<import("@/types").DentistDateAvailability[]>>(
+      `/dentists/${dentistId}/date-availability/${dateAvailabilityId}`,
+      data
+    ),
   calendar: (dentistId: number, year: number, month: number) =>
     api.get<ApiResponse<import("@/types").CalendarMonthData>>(
       `/dentists/${dentistId}/calendar`,

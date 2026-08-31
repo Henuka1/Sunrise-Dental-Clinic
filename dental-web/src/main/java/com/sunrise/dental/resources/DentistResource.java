@@ -180,6 +180,64 @@ public class DentistResource {
                 "Date availability added", dateAvailabilityDAO.getByDentistId(id)));
     }
 
+    /** Updates (edits) an existing date-range override. */
+    @PUT
+    @Path("{id}/date-availability/{daId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response updateDateAvailability(@PathParam("id") int id,
+                                           @PathParam("daId") int daId,
+                                           String body,
+                                           @Context HttpServletRequest request) {
+        User authUser = (User) request.getAttribute("authenticatedUser");
+        if (authUser != null && "DENTIST".equals(authUser.getRole())
+                && authUser.getDentistId() != id) {
+            return ResponseUtil.forbidden("Dentists can only manage their own availability");
+        }
+
+        DentistDateAvailability a;
+        try {
+            a = gson.fromJson(body, DentistDateAvailability.class);
+        } catch (Exception e) {
+            return ResponseUtil.badRequest("Invalid date availability data");
+        }
+        if (a == null || a.getStartDate() == null || a.getEndDate() == null
+                || a.getStartDate().isEmpty() || a.getEndDate().isEmpty()) {
+            return ResponseUtil.badRequest("Start date and end date are required");
+        }
+        if (a.getStartDate().compareTo(a.getEndDate()) > 0) {
+            return ResponseUtil.badRequest("End date must be on or after start date");
+        }
+        if (a.isAvailable() && (a.getStartTime() == null || a.getEndTime() == null
+                || a.getStartTime().trim().isEmpty() || a.getEndTime().trim().isEmpty())) {
+            return ResponseUtil.badRequest("Start time and end time are required");
+        }
+        String cleanStart = a.getStartTime() == null ? "09:00" : a.getStartTime().replaceAll("[\\s\\u00A0]+", "");
+        String cleanEnd = a.getEndTime() == null ? "17:00" : a.getEndTime().replaceAll("[\\s\\u00A0]+", "");
+        if (a.isAvailable() && cleanStart.compareTo(cleanEnd) >= 0) {
+            return ResponseUtil.badRequest("Start time must be before end time");
+        }
+        if (dateAvailabilityDAO.hasOverlap(id, a.getStartDate(), a.getEndDate(), daId)) {
+            return ResponseUtil.badRequest(
+                    "This date range overlaps another availability entry. Cancel it first.");
+        }
+        a.setDentistId(id);
+        a.setDateAvailabilityId(daId);
+        a.setStartTime(cleanStart);
+        a.setEndTime(cleanEnd);
+        try {
+            boolean updated = dateAvailabilityDAO.update(id, a);
+            if (!updated) {
+                return ResponseUtil.notFound("Date availability entry not found");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return ResponseUtil.serverError("Failed to update date availability: " + e.getMessage());
+        }
+        return ResponseUtil.success(new ApiResponseDTO(true,
+                "Date availability updated", dateAvailabilityDAO.getByDentistId(id)));
+    }
+
     /** Cancels (removes) one date-range override. */
     @DELETE
     @Path("{id}/date-availability/{daId}")

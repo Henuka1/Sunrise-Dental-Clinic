@@ -93,6 +93,26 @@ public class DateAvailabilityDAO {
         return -1;
     }
 
+    /** Updates an existing date-range override owned by the dentist. */
+    public boolean update(int dentistId, DentistDateAvailability a) throws SQLException {
+        String sql = "UPDATE dentist_date_availability "
+                + "SET start_date = ?, end_date = ?, start_time = ?, end_time = ?, "
+                + "is_available = ?, reason = ? "
+                + "WHERE date_availability_id = ? AND dentist_id = ?";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, a.getStartDate());
+            ps.setString(2, a.getEndDate());
+            ps.setTime(3, Time.valueOf(a.getStartTime() + ":00"));
+            ps.setTime(4, Time.valueOf(a.getEndTime() + ":00"));
+            ps.setBoolean(5, a.isAvailable());
+            ps.setString(6, a.getReason());
+            ps.setInt(7, a.getDateAvailabilityId());
+            ps.setInt(8, dentistId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
     public boolean delete(int dentistId, int dateAvailabilityId) {
         String sql = "DELETE FROM dentist_date_availability "
                 + "WHERE date_availability_id = ? AND dentist_id = ?";
