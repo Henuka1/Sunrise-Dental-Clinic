@@ -66,9 +66,11 @@ export default function PatientsPage() {
     setHistory(null);
     try {
       const res = await patientService.getHistory(patientId);
-      const data = res.data;
-      const apts = Array.isArray(data) ? data : (data as any)?.appointments || [];
-      setHistory(apts);
+      const payload = res.data as any;
+      // Backend returns ApiResponse wrapping the list at `payload.data`.
+      const list =
+        payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
+      setHistory(Array.isArray(list) ? list : []);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
