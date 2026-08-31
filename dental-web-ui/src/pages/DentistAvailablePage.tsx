@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   CalendarCheck2,
@@ -44,6 +44,13 @@ const WORK_END = 17; // 17:00
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const DEFAULT_SLOT = { startTime: "09:00", endTime: "17:00", isAvailable: false };
+
+/**
+ * Fallback slot length (minutes) for dates backed by the recurring weekly
+ * schedule, which doesn't store a slot length. Only per-date overrides carry a
+ * custom saved length.
+ */
+const DEFAULT_SLOT_MINUTES = 30;
 
 /** Selectable appointment slot lengths (minutes) for per-date availability. */
 const SLOT_LENGTHS = [15, 20, 30, 45, 60];
@@ -508,6 +515,7 @@ function AvailabilityCalendar({ dentistId, onChanged }: { dentistId: number; onC
   const [loadingDay, setLoadingDay] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [savingAdd, setSavingAdd] = useState(false);
+  const [applyingSlot, setApplyingSlot] = useState(false);
   const [quickForm, setQuickForm] = useState({
     startTime: "09:00",
     endTime: "17:00",
@@ -529,17 +537,29 @@ function AvailabilityCalendar({ dentistId, onChanged }: { dentistId: number; onC
     }
   };
 
-  const loadDay = async (date: string, minutes = slotMinutes) => {
+  // Remembers the previously opened date so we can tell a "date changed" load
+  // apart from a load caused by the user editing the slot-length dropdown. That
+  // way we reflect a saved override's slot length when first opening a date,
+  // without forcing the dropdown back every time the user changes it.
+  const prevDateRef = useRef<string | null>(null);
+
+  const loadDay = async (date: string, minutes = slotMinutes, applyOverrideSlot = false) => {
     if (!dentistId) return;
     setLoadingDay(true);
     try {
       const res = await availabilityService.daySchedule(dentistId, date, minutes);
       const data = res.data.data;
       setDaySchedule(data);
-      // A saved per-date override carries its own slot length — reflect it.
-      if (data?.source === "OVERRIDE" && data.slotMinutes) {
-        setSlotMinutes(data.slotMinutes);
-        setQuickForm((f) => ({ ...f, slotMinutes: data.slotMinutes! }));
+      // When first landing on a date, reflect that date's *saved* slot length
+      // only. Per-date overrides carry their own length; dates backed purely by
+      // the recurring weekly schedule have no stored length, so they reset to the
+      // default 30 min — never inheriting a leftover from another date. This is
+      // what keeps changing Sep 1 from touching other Tuesdays.
+      if (applyOverrideSlot) {
+        const len =
+          data?.source === "OVERRIDE" && data.slotMinutes ? data.slotMinutes : DEFAULT_SLOT_MINUTES;
+        setSlotMinutes(len);
+        setQuickForm((f) => ({ ...f, slotMinutes: len }));
       }
     } catch (err) {
       setDaySchedule(null);
@@ -554,7 +574,9 @@ function AvailabilityCalendar({ dentistId, onChanged }: { dentistId: number; onC
   }, [dentistId, year, month]);
 
   useEffect(() => {
-    loadDay(selectedDate);
+    const dateChanged = prevDateRef.current !== selectedDate;
+    prevDateRef.current = selectedDate;
+    loadDay(selectedDate, undefined, dateChanged);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dentistId, selectedDate, slotMinutes]);
 
@@ -592,6 +614,9 @@ function AvailabilityCalendar({ dentistId, onChanged }: { dentistId: number; onC
       setShowAdd(false);
       setQuickForm((f) => ({ ...f, reason: "" }));
       loadCalendar();
+      // Keep the slot-length dropdown in sync with the value just saved for
+      // this specific date (a weekly day becomes a per-date override).
+      setSlotMinutes(quickForm.slotMinutes);
       loadDay(selectedDate);
       // Notify the parent so the Date-Range Availability list below refreshes.
       onChanged?.();
@@ -607,6 +632,72 @@ function AvailabilityCalendar({ dentistId, onChanged }: { dentistId: number; onC
   };
   const nextMonth = () => {
     if (month === 12) { setMonth(1); setYear((y) => y + 1); } else setMonth((m) => m + 1);
+  };
+
+  // Persist the chosen slot length for the selected date. Creates a per-date
+  // override (keeping the day's current working window) or updates the existing
+  // single-date override, so the value sticks instead of only changing the view.
+  const handleApplySlotLength = async () => {
+    if (!dentistId) {
+      toast.error("No dentist record linked to your account");
+      return;
+    }
+    if (!daySchedule || !daySchedule.available || !daySchedule.startTime || !daySchedule.endTime) {
+      toast.error("Select an available day with working hours to apply a slot length.");
+      return;
+    }
+    setApplyingSlot(true);
+    try {
+      const rangesRes = await availabilityService.getDateRanges(dentistId);
+      const ranges = rangesRes.data.data || [];
+      const covering = ranges.find(
+        (r) => selectedDate >= r.startDate && selectedDate <= r.endDate
+      );
+
+      if (covering) {
+        if (covering.startDate === selectedDate && covering.endDate === selectedDate) {
+          // Single-date override -> update just its slot length.
+          await availabilityService.updateDateRange(dentistId, covering.dateAvailabilityId!, {
+            startDate: covering.startDate,
+            endDate: covering.endDate,
+            startTime: covering.startTime,
+            endTime: covering.endTime,
+            isAvailable: covering.isAvailable,
+            slotMinutes,
+            reason: covering.reason,
+          });
+        } else {
+          // A multi-date range covers this date; changing only one day would
+          // affect the whole range, so direct the user to the list below.
+          toast.error(
+            "This date belongs to a date-range entry — edit its slot length in the Date-Range Availability section."
+          );
+          return;
+        }
+      } else {
+        // No override yet -> create a per-date override for this single date.
+        const start = (daySchedule.startTime || "09:00").replace(/\s/g, "");
+        const end = (daySchedule.endTime || "17:00").replace(/\s/g, "");
+        await availabilityService.addDateRange(dentistId, {
+          dentistId,
+          startDate: selectedDate,
+          endDate: selectedDate,
+          startTime: start,
+          endTime: end,
+          isAvailable: true,
+          slotMinutes,
+        });
+      }
+
+      toast.success(`Slot length set to ${slotMinutes} min for ${formatDate(selectedDate)}`);
+      loadCalendar();
+      loadDay(selectedDate);
+      onChanged?.();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setApplyingSlot(false);
+    }
   };
 
   const dayMap = new Map<string, CalendarDay>();
@@ -691,7 +782,7 @@ function AvailabilityCalendar({ dentistId, onChanged }: { dentistId: number; onC
           description={formatDate(selectedDate)}
         />
         <div className="mt-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs font-medium text-slate-500">Slot length</label>
             <select
               value={slotMinutes}
@@ -702,6 +793,16 @@ function AvailabilityCalendar({ dentistId, onChanged }: { dentistId: number; onC
                 <option key={m} value={m}>{m} min</option>
               ))}
             </select>
+            <Button
+              onClick={handleApplySlotLength}
+              disabled={applyingSlot}
+              size="sm"
+              variant="outline"
+              title="Save this slot length for the selected date (creates/updates a per-date entry)"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {applyingSlot ? "Saving..." : "Apply to this date"}
+            </Button>
           </div>
           <Button
             onClick={() => setShowAdd((v) => !v)}
