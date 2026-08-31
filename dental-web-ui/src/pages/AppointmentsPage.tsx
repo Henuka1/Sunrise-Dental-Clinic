@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Calendar, Plus, XCircle, CheckCircle, UserX, UserCheck } from "lucide-react";
+import { Calendar, Plus, XCircle, CheckCircle, UserX, UserCheck, Search } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -25,6 +25,7 @@ export default function AppointmentsPage() {
   const [error, setError] = useState("");
   const [filterDate, setFilterDate] = useState(getTodayString());
   const [filterStatus, setFilterStatus] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
   const [updating, setUpdating] = useState<number | null>(null);
 
@@ -32,10 +33,15 @@ export default function AppointmentsPage() {
     setLoading(true);
     setError("");
     try {
-      const params: { date?: string; status?: string } = {};
-      if (filterDate) params.date = filterDate;
-      if (filterStatus) params.status = filterStatus;
-      const res = await appointmentService.getAll(params);
+      let res;
+      if (searchQuery.trim()) {
+        res = await appointmentService.searchByNicOrName(searchQuery.trim());
+      } else {
+        const params: { date?: string; status?: string } = {};
+        if (filterDate) params.date = filterDate;
+        if (filterStatus) params.status = filterStatus;
+        res = await appointmentService.getAll(params);
+      }
       setAppointments(res.data.data || []);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -46,7 +52,7 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     load();
-  }, [filterDate, filterStatus]);
+  }, [filterDate, filterStatus, searchQuery]);
 
   const handleCancel = async () => {
     if (!cancelTarget) return;
@@ -118,6 +124,25 @@ export default function AppointmentsPage() {
       />
 
       <Card className="mb-6">
+        <div className="relative mb-4">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by patient name, contact number, or appointment number..."
+            className="h-11 w-full rounded-xl border border-slate-300/80 bg-white/90 py-2.5 pl-11 pr-10 text-sm text-slate-900 placeholder:text-slate-400 shadow-[0_8px_18px_-16px_rgba(15,23,42,0.55)] transition-all focus:border-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-500/15"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 transition-colors hover:text-slate-600"
+            >
+              Clear
+            </button>
+          )}
+        </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Input
             label="Filter by Date"
@@ -144,6 +169,7 @@ export default function AppointmentsPage() {
               onClick={() => {
                 setFilterDate("");
                 setFilterStatus("");
+                setSearchQuery("");
               }}
               className="w-full"
             >
