@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Calendar, Plus, XCircle, CheckCircle, UserX, UserCheck, Search, StickyNote } from "lucide-react";
+import { Calendar, Plus, XCircle, CheckCircle, UserX, UserCheck, Search, StickyNote, ClipboardPlus } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -13,6 +13,7 @@ import ErrorState from "@/components/ErrorState";
 import EmptyState, { TableLoading } from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import NotesModal from "@/components/NotesModal";
+import AdditionalTreatmentsModal from "@/components/AdditionalTreatmentsModal";
 import { useAuth } from "@/context/AuthContext";
 import { appointmentService } from "@/lib/services";
 import { getTodayString, formatDate, formatTime, getErrorMessage } from "@/lib/utils";
@@ -29,6 +30,7 @@ export default function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
   const [noteTarget, setNoteTarget] = useState<Appointment | null>(null);
+  const [treatmentTarget, setTreatmentTarget] = useState<Appointment | null>(null);
   const [updating, setUpdating] = useState<number | null>(null);
 
   const load = async () => {
@@ -227,7 +229,21 @@ export default function AppointmentsPage() {
                     </td>
                     <td className="px-6 py-4 text-slate-900">{apt.patientName}</td>
                     {!isDentist && <td className="px-6 py-4 text-slate-600">Dr. {apt.dentistName}</td>}
-                    <td className="px-6 py-4 text-slate-600">{apt.treatmentName}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-600">{apt.treatmentName}</span>
+                        {isDentist && (
+                          <button
+                            onClick={() => setTreatmentTarget(apt)}
+                            className="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 transition-colors hover:bg-teal-100"
+                            title="Add additional treatments"
+                          >
+                            <ClipboardPlus className="h-3 w-3" />
+                            More
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-slate-600">{formatDate(apt.appointmentDate)}</td>
                     <td className="px-6 py-4 text-slate-600">{formatTime(apt.appointmentTime)}</td>
                     <td className="px-6 py-4">
@@ -319,6 +335,12 @@ export default function AppointmentsPage() {
         open={!!noteTarget}
         appointment={noteTarget}
         onClose={() => setNoteTarget(null)}
+      />
+
+      <AdditionalTreatmentsModal
+        open={!!treatmentTarget}
+        appointment={treatmentTarget}
+        onClose={() => setTreatmentTarget(null)}
       />
     </div>
   );

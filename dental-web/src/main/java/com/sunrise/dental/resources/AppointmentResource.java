@@ -9,7 +9,9 @@ import com.sunrise.dental.dao.AppointmentDAO;
 import com.sunrise.dental.dto.ApiResponseDTO;
 import com.sunrise.dental.factory.BillFactory;
 import com.sunrise.dental.model.Appointment;
+import com.sunrise.dental.model.Treatment;
 import com.sunrise.dental.model.User;
+import com.sunrise.dental.dao.TreatmentDAO;
 import com.sunrise.dental.util.ResponseUtil;
 import com.sunrise.dental.util.ValidationUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +28,7 @@ import java.util.List;
 public class AppointmentResource {
     private final Gson gson = new Gson();
     private final AppointmentDAO appointmentDAO = new AppointmentDAO();
+    private final TreatmentDAO treatmentDAO = new TreatmentDAO();
 
     private User getLoggedInUser(HttpServletRequest request) {
         if (request == null) return null;
@@ -286,6 +289,68 @@ public class AppointmentResource {
         } catch (Exception e) {
             return ResponseUtil.serverError("Error: " + e.getMessage());
         }
+    }
+
+    @GET
+    @Path("{id}/treatments")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getAdditionalTreatments(@Context HttpServletRequest request, @PathParam("id") int id) {
+        User loggedIn = getLoggedInUser(request);
+        if (isDentist(loggedIn) && !ownsAppointment(loggedIn, id)) {
+            return ResponseUtil.notFound("Appointment not found");
+        }
+        return ResponseUtil.success(new ApiResponseDTO(true, "Additional treatments retrieved",
+                appointmentDAO.getAdditionalTreatments(id)));
+    }
+
+    /** Only the owning DENTIST may add additional treatments to an appointment. */
+    @POST
+    @Path("{id}/treatments")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response addAdditionalTreatment(@Context HttpServletRequest request, @PathParam("id") int id, String json) {
+        User dentist = getLoggedInUser(request);
+        if (!isDentist(dentist) || !ownsAppointment(dentist, id)) {
+            return ResponseUtil.forbidden("Only the appointment's dentist can add treatments");
+        }
+        try {
+            Treatment body = json == null || json.trim().isEmpty()
+                    ? new Treatment()
+                    : gson.fromJson(json, Treatment.class);
+            if (body.getTreatmentId() <= 0) {
+                return ResponseUtil.badRequest("Treatment is required");
+            }
+            if (treatmentDAO.getTreatmentById(body.getTreatmentId()) == null) {
+                return ResponseUtil.notFound("Treatment not found");
+            }
+            boolean added = appointmentDAO.addAdditionalTreatment(id, body.getTreatmentId());
+            if (!added) {
+                return ResponseUtil.badRequest("This treatment is already added to the appointment");
+            }
+            return ResponseUtil.created(new ApiResponseDTO(true, "Additional treatment added",
+                    appointmentDAO.getAdditionalTreatments(id)));
+        } catch (Exception e) {
+            return ResponseUtil.serverError("Error: " + e.getMessage());
+        }
+    }
+
+    /** Only the owning DENTIST may remove additional treatments from an appointment. */
+    @DELETE
+    @Path("{id}/treatments/{treatmentId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response removeAdditionalTreatment(@Context HttpServletRequest request,
+                                              @PathParam("id") int id,
+                                              @PathParam("treatmentId") int treatmentId) {
+        User dentist = getLoggedInUser(request);
+        if (!isDentist(dentist) || !ownsAppointment(dentist, id)) {
+            return ResponseUtil.forbidden("Only the appointment's dentist can remove treatments");
+        }
+        boolean removed = appointmentDAO.removeAdditionalTreatment(id, treatmentId);
+        if (!removed) {
+            return ResponseUtil.notFound("Treatment not found on this appointment");
+        }
+        return ResponseUtil.success(new ApiResponseDTO(true, "Additional treatment removed",
+                appointmentDAO.getAdditionalTreatments(id)));
     }
 
     private boolean ownsAppointment(User dentist, int appointmentId) {

@@ -5,6 +5,7 @@
 package com.sunrise.dental.dao;
 
 import com.sunrise.dental.model.Appointment;
+import com.sunrise.dental.model.Treatment;
 import com.sunrise.dental.util.DBConnection;
 
 import java.sql.*;
@@ -449,6 +450,60 @@ public class AppointmentDAO {
             e.printStackTrace();
         }
         return appointments;
+    }
+
+    /** Additional treatments linked to an appointment (many-to-many). */
+    public List<Treatment> getAdditionalTreatments(int appointmentId) {
+        List<Treatment> treatments = new ArrayList<>();
+        String sql = "SELECT t.treatment_id, t.treatment_name, t.treatment_code, t.base_cost, t.consultation_fee, t.description " +
+                     "FROM appointment_treatments atx " +
+                     "JOIN treatments t ON atx.treatment_id = t.treatment_id " +
+                     "WHERE atx.appointment_id = ? ORDER BY t.treatment_name";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, appointmentId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                treatments.add(new Treatment(
+                        rs.getInt("treatment_id"),
+                        rs.getString("treatment_name"),
+                        rs.getString("treatment_code"),
+                        rs.getDouble("base_cost"),
+                        rs.getDouble("consultation_fee"),
+                        rs.getString("description")));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return treatments;
+    }
+
+    /** Link an additional treatment to an appointment. Returns false if already linked. */
+    public boolean addAdditionalTreatment(int appointmentId, int treatmentId) {
+        String sql = "INSERT IGNORE INTO appointment_treatments (appointment_id, treatment_id) VALUES (?, ?)";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, appointmentId);
+            ps.setInt(2, treatmentId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /** Unlink an additional treatment from an appointment. */
+    public boolean removeAdditionalTreatment(int appointmentId, int treatmentId) {
+        String sql = "DELETE FROM appointment_treatments WHERE appointment_id = ? AND treatment_id = ?";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, appointmentId);
+            ps.setInt(2, treatmentId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     private Appointment mapResultSet(ResultSet rs) throws SQLException {

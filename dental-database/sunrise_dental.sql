@@ -186,6 +186,30 @@ CREATE TABLE IF NOT EXISTS appointments (
 
 
 -- ============================================================
+-- STEP 6.5: APPOINTMENT - ADDITIONAL TREATMENTS (MANY-TO-MANY)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS appointment_treatments (
+    appointment_id INT NOT NULL,
+    treatment_id INT NOT NULL,
+
+    PRIMARY KEY (appointment_id, treatment_id),
+
+    CONSTRAINT fk_aptreatment_appointment
+        FOREIGN KEY (appointment_id)
+        REFERENCES appointments(appointment_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_aptreatment_treatment
+        FOREIGN KEY (treatment_id)
+        REFERENCES treatments(treatment_id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+
+-- ============================================================
 -- STEP 7: BILLS TABLE
 -- ============================================================
 

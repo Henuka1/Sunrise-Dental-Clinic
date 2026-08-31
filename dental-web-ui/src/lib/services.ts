@@ -126,6 +126,12 @@ export const appointmentService = {
     api.put<ApiResponse<Appointment>>(`/appointments/${id}/check-in`, { notes }),
   updateNotes: (id: number, notes?: string) =>
     api.put<ApiResponse<Appointment>>(`/appointments/${id}/notes`, { notes }),
+  getAdditionalTreatments: (id: number) =>
+    api.get<ApiResponse<Treatment[]>>(`/appointments/${id}/treatments`),
+  addAdditionalTreatment: (id: number, treatmentId: number) =>
+    api.post<ApiResponse<Treatment[]>>(`/appointments/${id}/treatments`, { treatmentId }),
+  removeAdditionalTreatment: (id: number, treatmentId: number) =>
+    api.delete<ApiResponse<Treatment[]>>(`/appointments/${id}/treatments/${treatmentId}`),
 };
 
 export const billingService = {

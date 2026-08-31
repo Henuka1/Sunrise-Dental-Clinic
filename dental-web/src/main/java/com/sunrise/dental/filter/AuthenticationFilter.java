@@ -97,8 +97,8 @@ public class AuthenticationFilter implements Filter {
         if (("POST".equals(m) || "PUT".equals(m) || "DELETE".equals(m)) && p.startsWith("/api/patients")) {
             return true;
         }
-        // Create or cancel appointments
-        if ("POST".equals(m) && p.startsWith("/api/appointments")) {
+        // Create appointments (PUT-based action endpoints below are still allowed)
+        if ("POST".equals(m) && "/api/appointments".equals(p)) {
             return true;
         }
         // Dentist cannot cancel appointments (DELETE /appointments/{id} or PUT /appointments/{id}/cancel)
