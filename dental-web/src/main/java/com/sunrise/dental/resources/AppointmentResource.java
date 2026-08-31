@@ -6,12 +6,14 @@ package com.sunrise.dental.resources;
 
 import com.google.gson.Gson;
 import com.sunrise.dental.dao.AppointmentDAO;
+import com.sunrise.dental.dao.BillDAO;
+import com.sunrise.dental.dao.TreatmentDAO;
 import com.sunrise.dental.dto.ApiResponseDTO;
 import com.sunrise.dental.factory.BillFactory;
 import com.sunrise.dental.model.Appointment;
+import com.sunrise.dental.model.Bill;
 import com.sunrise.dental.model.Treatment;
 import com.sunrise.dental.model.User;
-import com.sunrise.dental.dao.TreatmentDAO;
 import com.sunrise.dental.util.ResponseUtil;
 import com.sunrise.dental.util.ValidationUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +31,7 @@ public class AppointmentResource {
     private final Gson gson = new Gson();
     private final AppointmentDAO appointmentDAO = new AppointmentDAO();
     private final TreatmentDAO treatmentDAO = new TreatmentDAO();
+    private final BillDAO billDAO = new BillDAO();
 
     private User getLoggedInUser(HttpServletRequest request) {
         if (request == null) return null;
@@ -216,6 +219,8 @@ public class AppointmentResource {
             if (!completed) {
                 return ResponseUtil.badRequest("Failed to complete appointment");
             }
+            // Auto-generate the bill (PENDING) so it appears on the Billing page.
+            autoGenerateBill(id);
             return ResponseUtil.success(new ApiResponseDTO(true, "Appointment marked as completed", null));
         } catch (Exception e) {
             return ResponseUtil.serverError("Error: " + e.getMessage());
@@ -351,6 +356,36 @@ public class AppointmentResource {
         }
         return ResponseUtil.success(new ApiResponseDTO(true, "Additional treatment removed",
                 appointmentDAO.getAdditionalTreatments(id)));
+    }
+
+    /**
+     * Auto-generate a PENDING bill for a completed appointment. Includes the
+     * primary treatment cost, consultation fee and the cost of any additional
+     * treatments linked to the appointment. Silently skips if a bill already
+     * exists or data is missing, so completing never fails.
+     */
+    private void autoGenerateBill(int appointmentId) {
+        try {
+            if (billDAO.getBillByAppointmentId(appointmentId) != null) {
+                return; // bill already generated
+            }
+            Appointment apt = appointmentDAO.getAppointmentById(appointmentId);
+            if (apt == null) return;
+            Treatment treatment = treatmentDAO.getTreatmentById(apt.getTreatmentId());
+            if (treatment == null) return;
+
+            // Sum the base costs of additional treatments as extra charges.
+            double additionalCharges = 0;
+            for (Treatment t : appointmentDAO.getAdditionalTreatments(appointmentId)) {
+                additionalCharges += t.getBaseCost();
+            }
+
+            Bill bill = BillFactory.createBill(appointmentId, treatment, additionalCharges, 0);
+            bill.setBillNumber(BillFactory.generateBillNumber(billDAO.getLastBillNumber()));
+            billDAO.addBill(bill);
+        } catch (Exception e) {
+            e.printStackTrace(); // never block the completion flow
+        }
     }
 
     private boolean ownsAppointment(User dentist, int appointmentId) {

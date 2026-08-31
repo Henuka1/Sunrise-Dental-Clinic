@@ -123,6 +123,8 @@ export default function BillingPage() {
                   <th className="px-6 py-3 font-medium">Bill #</th>
                   <th className="px-6 py-3 font-medium">Apt #</th>
                   <th className="px-6 py-3 font-medium">Patient</th>
+                  <th className="px-6 py-3 font-medium">Primary Treatment</th>
+                  <th className="px-6 py-3 font-medium">Additional Treatments</th>
                   <th className="px-6 py-3 font-medium">Total</th>
                   <th className="px-6 py-3 font-medium">Status</th>
                   <th className="px-6 py-3 font-medium">Method</th>
@@ -136,6 +138,14 @@ export default function BillingPage() {
                     <td className="px-6 py-4 font-medium text-teal-700">{bill.billNumber}</td>
                     <td className="px-6 py-4 text-slate-600">{bill.appointmentNumber}</td>
                     <td className="px-6 py-4 text-slate-900">{bill.patientName}</td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {formatCurrency(bill.treatmentCost + bill.consultationFee)}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {bill.additionalCharges > 0
+                        ? formatCurrency(bill.additionalCharges)
+                        : <span className="text-slate-400">—</span>}
+                    </td>
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {formatCurrency(bill.totalAmount)}
                     </td>
