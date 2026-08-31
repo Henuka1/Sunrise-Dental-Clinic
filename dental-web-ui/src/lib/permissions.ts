@@ -9,6 +9,7 @@ export type ModuleKey =
   | "reports"
   | "users"
   | "user_access"
+  | "availability"
   | "help";
 
 export interface ModuleDef {
@@ -27,6 +28,7 @@ export const MODULES: ModuleDef[] = [
   { key: "treatments", label: "Treatment Manage", path: "/treatments", description: "Manage the treatment catalogue and pricing" },
   { key: "users", label: "User Management", path: "/users", description: "Create, edit and remove user accounts" },
   { key: "user_access", label: "User Access Control", path: "/users/access", description: "Control what each user can access" },
+  { key: "availability", label: "Dentist Availability", path: "/dentist/available", description: "Manage dentist weekly and date availability" },
   { key: "help", label: "Help", path: "/help", description: "Help and user guide" },
 ];
 
@@ -39,7 +41,7 @@ export const PATH_MODULE: Record<string, ModuleKey> = {
   "/patients/new": "patients",
   "/appointments": "appointments",
   "/appointments/new": "appointments",
-  "/dentist/available": "appointments",
+  "/dentist/available": "availability",
   "/search": "appointments",
   "/billing": "billing",
     "/reports": "reports",
@@ -53,7 +55,7 @@ export const PATH_MODULE: Record<string, ModuleKey> = {
 export const DEFAULT_PERMISSIONS: Record<User["role"], ModuleKey[]> = {
   ADMIN: [...ALL_KEYS],
     RECEPTIONIST: ["dashboard", "patients", "appointments", "billing", "treatments", "reports", "help"],
-  DENTIST: ["dashboard", "patients", "appointments", "reports", "help"],
+  DENTIST: ["dashboard", "patients", "appointments", "availability", "reports", "help"],
 };
 /** The effective set of modules a given user is allowed to access. */
 export function getEffectivePermissions(user: User | null): ModuleKey[] {

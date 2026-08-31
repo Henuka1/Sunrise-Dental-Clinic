@@ -30,6 +30,7 @@ public class PermissionUtil {
         "reports",
         "users",
         "user_access",
+        "availability",
         "help"
     );
 
@@ -42,7 +43,7 @@ public class PermissionUtil {
             "dashboard", "patients", "appointments", "billing", "reports", "help"
         ));
         ROLE_DEFAULTS.put("DENTIST", Arrays.asList(
-            "dashboard", "patients", "appointments", "reports", "help"
+            "dashboard", "patients", "appointments", "availability", "reports", "help"
         ));
     }
 
