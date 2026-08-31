@@ -167,6 +167,7 @@ public class DentistResource {
         a.setDentistId(id);
         a.setStartTime(cleanStart);
         a.setEndTime(cleanEnd);
+        a.setSlotMinutes(sanitizeSlotMinutes(a.getSlotMinutes()));
         try {
             int newId = dateAvailabilityDAO.add(a);
             if (newId <= 0) {
@@ -225,6 +226,7 @@ public class DentistResource {
         a.setDateAvailabilityId(daId);
         a.setStartTime(cleanStart);
         a.setEndTime(cleanEnd);
+        a.setSlotMinutes(sanitizeSlotMinutes(a.getSlotMinutes()));
         try {
             boolean updated = dateAvailabilityDAO.update(id, a);
             if (!updated) {
@@ -310,6 +312,7 @@ public class DentistResource {
                 day.put("available", override.isAvailable());
                 day.put("startTime", override.getStartTime());
                 day.put("endTime", override.getEndTime());
+                day.put("slotMinutes", override.getSlotMinutes());
                 day.put("reason", override.getReason());
             } else {
                 DentistAvailability w = null;
@@ -366,6 +369,10 @@ public class DentistResource {
             }
         }
         DentistDateAvailability override = dateAvailabilityDAO.findCovering(id, date);
+        // A saved per-date override carries its own slot length — use it for this date.
+        if (override != null && override.getSlotMinutes() >= 10 && override.getSlotMinutes() <= 240) {
+            slotMinutes = override.getSlotMinutes();
+        }
 
         boolean available;
         String windowStart;
@@ -449,6 +456,11 @@ public class DentistResource {
             cursor = end;
         }
         return minutes;
+    }
+
+    /** Validates/coerces a slot length in minutes (between 10 and 240, default 30). */
+    private static int sanitizeSlotMinutes(int s) {
+        return (s >= 10 && s <= 240) ? s : 30;
     }
 
     private static int toMinutes(String time) {

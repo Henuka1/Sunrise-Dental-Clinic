@@ -660,6 +660,8 @@ CREATE TABLE IF NOT EXISTS dentist_date_availability (
 
     is_available BOOLEAN NOT NULL DEFAULT TRUE,
 
+    slot_minutes INT NOT NULL DEFAULT 30,
+
     reason VARCHAR(255) NULL,
 
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -671,6 +673,9 @@ CREATE TABLE IF NOT EXISTS dentist_date_availability (
     CONSTRAINT chk_date_range CHECK (end_date >= start_date)
 
 ) ENGINE=InnoDB;
+
+ALTER TABLE dentist_date_availability
+    ADD COLUMN IF NOT EXISTS slot_minutes INT NOT NULL DEFAULT 30;
 
 
 

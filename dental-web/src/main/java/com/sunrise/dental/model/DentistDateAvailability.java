@@ -18,18 +18,21 @@ public class DentistDateAvailability {
     /** "HH:MM" 24h format */
     private String endTime;
     private boolean isAvailable;
+    /** Appointment slot length in minutes used for this override. */
+    private int slotMinutes;
     private String reason;
 
     public DentistDateAvailability() {}
 
     public DentistDateAvailability(int dentistId, String startDate, String endDate,
-                                   String startTime, String endTime, boolean isAvailable, String reason) {
+                                   String startTime, String endTime, boolean isAvailable, int slotMinutes, String reason) {
         this.dentistId = dentistId;
         this.startDate = startDate;
         this.endDate = endDate;
         this.startTime = startTime;
         this.endTime = endTime;
         this.isAvailable = isAvailable;
+        this.slotMinutes = slotMinutes;
         this.reason = reason;
     }
 
@@ -47,6 +50,8 @@ public class DentistDateAvailability {
     public void setEndTime(String endTime) { this.endTime = endTime; }
     public boolean isAvailable() { return isAvailable; }
     public void setAvailable(boolean isAvailable) { this.isAvailable = isAvailable; }
+    public int getSlotMinutes() { return slotMinutes; }
+    public void setSlotMinutes(int slotMinutes) { this.slotMinutes = slotMinutes; }
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
 }

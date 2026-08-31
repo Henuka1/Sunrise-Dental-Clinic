@@ -184,6 +184,8 @@ export interface DentistDateAvailability {
   /** "HH:MM" 24h format */
   endTime: string;
   isAvailable: boolean;
+  /** Appointment slot length in minutes for this override (per-date). */
+  slotMinutes?: number;
   reason?: string;
 }
 
@@ -195,6 +197,7 @@ export interface CalendarDay {
   available: boolean;
   startTime?: string | null;
   endTime?: string | null;
+  slotMinutes?: number | null;
   reason?: string | null;
 }
 

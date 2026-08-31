@@ -73,8 +73,8 @@ public class DateAvailabilityDAO {
 
     public int add(DentistDateAvailability a) throws SQLException {
         String sql = "INSERT INTO dentist_date_availability "
-                + "(dentist_id, start_date, end_date, start_time, end_time, is_available, reason) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                + "(dentist_id, start_date, end_date, start_time, end_time, is_available, slot_minutes, reason) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, a.getDentistId());
@@ -83,7 +83,8 @@ public class DateAvailabilityDAO {
             ps.setTime(4, Time.valueOf(a.getStartTime() + ":00"));
             ps.setTime(5, Time.valueOf(a.getEndTime() + ":00"));
             ps.setBoolean(6, a.isAvailable());
-            ps.setString(7, a.getReason());
+            ps.setInt(7, a.getSlotMinutes());
+            ps.setString(8, a.getReason());
             ps.executeUpdate();
             ResultSet keys = ps.getGeneratedKeys();
             if (keys.next()) {
@@ -97,7 +98,7 @@ public class DateAvailabilityDAO {
     public boolean update(int dentistId, DentistDateAvailability a) throws SQLException {
         String sql = "UPDATE dentist_date_availability "
                 + "SET start_date = ?, end_date = ?, start_time = ?, end_time = ?, "
-                + "is_available = ?, reason = ? "
+                + "is_available = ?, slot_minutes = ?, reason = ? "
                 + "WHERE date_availability_id = ? AND dentist_id = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -106,9 +107,10 @@ public class DateAvailabilityDAO {
             ps.setTime(3, Time.valueOf(a.getStartTime() + ":00"));
             ps.setTime(4, Time.valueOf(a.getEndTime() + ":00"));
             ps.setBoolean(5, a.isAvailable());
-            ps.setString(6, a.getReason());
-            ps.setInt(7, a.getDateAvailabilityId());
-            ps.setInt(8, dentistId);
+            ps.setInt(6, a.getSlotMinutes());
+            ps.setString(7, a.getReason());
+            ps.setInt(8, a.getDateAvailabilityId());
+            ps.setInt(9, dentistId);
             return ps.executeUpdate() > 0;
         }
     }
@@ -140,6 +142,7 @@ public class DateAvailabilityDAO {
         a.setStartTime(st != null ? st.toLocalTime().toString().substring(0, 5) : "09:00");
         a.setEndTime(et != null ? et.toLocalTime().toString().substring(0, 5) : "17:00");
         a.setAvailable(rs.getBoolean("is_available"));
+        a.setSlotMinutes(rs.getInt("slot_minutes"));
         a.setReason(rs.getString("reason"));
         return a;
     }

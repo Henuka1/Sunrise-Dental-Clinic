@@ -45,6 +45,9 @@ const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 
 const DEFAULT_SLOT = { startTime: "09:00", endTime: "17:00", isAvailable: false };
 
+/** Selectable appointment slot lengths (minutes) for per-date availability. */
+const SLOT_LENGTHS = [15, 20, 30, 45, 60];
+
 export default function DentistAvailablePage() {
   const { user } = useAuth();
   const [dentist, setDentist] = useState<Dentist | null>(null);
@@ -498,6 +501,7 @@ function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
     startTime: "09:00",
     endTime: "17:00",
     isAvailable: true,
+    slotMinutes: 30,
     reason: "",
   });
 
@@ -519,7 +523,13 @@ function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
     setLoadingDay(true);
     try {
       const res = await availabilityService.daySchedule(dentistId, date, minutes);
-      setDaySchedule(res.data.data);
+      const data = res.data.data;
+      setDaySchedule(data);
+      // A saved per-date override carries its own slot length — reflect it.
+      if (data?.source === "OVERRIDE" && data.slotMinutes) {
+        setSlotMinutes(data.slotMinutes);
+        setQuickForm((f) => ({ ...f, slotMinutes: data.slotMinutes! }));
+      }
     } catch (err) {
       setDaySchedule(null);
     } finally {
@@ -560,6 +570,7 @@ function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
         startTime: quickForm.startTime.replace(/\s/g, ""),
         endTime: quickForm.endTime.replace(/\s/g, ""),
         isAvailable: quickForm.isAvailable,
+        slotMinutes: quickForm.slotMinutes,
         reason: quickForm.reason.trim() || undefined,
       });
       toast.success(
@@ -733,6 +744,27 @@ function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
                 </label>
               </div>
             )}
+            {quickForm.isAvailable && (
+              <div className="mt-3">
+                <p className="text-xs font-medium text-slate-500">Slot length (per appointment)</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {SLOT_LENGTHS.map((len) => (
+                    <button
+                      key={len}
+                      type="button"
+                      onClick={() => setQuickForm((f) => ({ ...f, slotMinutes: len }))}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                        quickForm.slotMinutes === len
+                          ? "border-teal-600 bg-teal-600 text-white"
+                          : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {len} min
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <input
               type="text"
               value={quickForm.reason}
@@ -891,6 +923,7 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
     startTime: "09:00",
     endTime: "17:00",
     isAvailable: true,
+    slotMinutes: 30,
     reason: "",
   });
 
@@ -933,6 +966,7 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
       startTime: form.startTime.replace(/\s/g, ""),
       endTime: form.endTime.replace(/\s/g, ""),
       isAvailable: form.isAvailable,
+      slotMinutes: form.slotMinutes,
       reason: form.reason.trim() || undefined,
     };
     try {
@@ -970,6 +1004,7 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
       startTime: r.startTime,
       endTime: r.endTime,
       isAvailable: r.isAvailable,
+      slotMinutes: r.slotMinutes ?? 30,
       reason: r.reason ?? "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -983,6 +1018,7 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
       startTime: "09:00",
       endTime: "17:00",
       isAvailable: true,
+      slotMinutes: 30,
       reason: "",
     });
   };
@@ -1084,6 +1120,25 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
               />
             </label>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Slot length (per appointment)</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {SLOT_LENGTHS.map((len) => (
+                  <button
+                    key={len}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, slotMinutes: len }))}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                      form.slotMinutes === len
+                        ? "border-teal-600 bg-teal-600 text-white"
+                        : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {len} min
+                  </button>
+                ))}
+              </div>
+            </div>
           </>
         )}
         <label className="text-xs font-medium text-slate-500">
@@ -1146,6 +1201,7 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
                   {r.isAvailable
                     ? `${formatTime(r.startTime)} – ${formatTime(r.endTime)}`
                     : "Unavailable"}
+                  {r.slotMinutes ? ` • ${r.slotMinutes} min slots` : ""}
                   {r.reason ? ` • ${r.reason}` : ""}
                 </p>
               </div>
