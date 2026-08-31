@@ -25,10 +25,15 @@ public class BillDAO {
 
     public List<Bill> getAllBills() {
         List<Bill> bills = new ArrayList<>();
-        String sql = "SELECT b.*, a.appointment_number, p.patient_name " +
+        String sql = "SELECT b.*, a.appointment_number, p.patient_name, tr.treatment_name, " +
+                     "(SELECT GROUP_CONCAT(t.treatment_name SEPARATOR ', ') " +
+                     "FROM appointment_treatments atx " +
+                     "JOIN treatments t ON atx.treatment_id = t.treatment_id " +
+                     "WHERE atx.appointment_id = a.appointment_id) AS additional_names " +
                      "FROM bills b " +
                      "JOIN appointments a ON b.appointment_id = a.appointment_id " +
                      "JOIN patients p ON a.patient_id = p.patient_id " +
+                     "JOIN treatments tr ON a.treatment_id = tr.treatment_id " +
                      "ORDER BY b.billed_at DESC";
         try (Connection conn = DBConnection.getInstance().getConnection();
              Statement stmt = conn.createStatement();
@@ -44,11 +49,16 @@ public class BillDAO {
 
     public List<Bill> getBillsByStatus(String status) {
         List<Bill> bills = new ArrayList<>();
-        String sql = "SELECT b.*, a.appointment_number, p.patient_name " +
-                     "FROM bills b " +
-                     "JOIN appointments a ON b.appointment_id = a.appointment_id " +
-                     "JOIN patients p ON a.patient_id = p.patient_id " +
-                     "WHERE b.payment_status = ? ORDER BY b.billed_at DESC";
+            String sql = "SELECT b.*, a.appointment_number, p.patient_name, tr.treatment_name, " +
+                         "(SELECT GROUP_CONCAT(t.treatment_name SEPARATOR ', ') " +
+                         "FROM appointment_treatments atx " +
+                         "JOIN treatments t ON atx.treatment_id = t.treatment_id " +
+                         "WHERE atx.appointment_id = a.appointment_id) AS additional_names " +
+                         "FROM bills b " +
+                         "JOIN appointments a ON b.appointment_id = a.appointment_id " +
+                         "JOIN patients p ON a.patient_id = p.patient_id " +
+                         "JOIN treatments tr ON a.treatment_id = tr.treatment_id " +
+                         "WHERE b.payment_status = ? ORDER BY b.billed_at DESC";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, status);
@@ -83,10 +93,15 @@ public class BillDAO {
     }
 
     public Bill getBillByAppointmentId(int appointmentId) {
-        String sql = "SELECT b.*, a.appointment_number, p.patient_name " +
+        String sql = "SELECT b.*, a.appointment_number, p.patient_name, tr.treatment_name, " +
+                     "(SELECT GROUP_CONCAT(t.treatment_name SEPARATOR ', ') " +
+                     "FROM appointment_treatments atx " +
+                     "JOIN treatments t ON atx.treatment_id = t.treatment_id " +
+                     "WHERE atx.appointment_id = a.appointment_id) AS additional_names " +
                      "FROM bills b " +
                      "JOIN appointments a ON b.appointment_id = a.appointment_id " +
                      "JOIN patients p ON a.patient_id = p.patient_id " +
+                     "JOIN treatments tr ON a.treatment_id = tr.treatment_id " +
                      "WHERE b.appointment_id = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -102,10 +117,15 @@ public class BillDAO {
     }
 
     public Bill getBillById(int billId) {
-        String sql = "SELECT b.*, a.appointment_number, p.patient_name " +
+        String sql = "SELECT b.*, a.appointment_number, p.patient_name, tr.treatment_name, " +
+                     "(SELECT GROUP_CONCAT(t.treatment_name SEPARATOR ', ') " +
+                     "FROM appointment_treatments atx " +
+                     "JOIN treatments t ON atx.treatment_id = t.treatment_id " +
+                     "WHERE atx.appointment_id = a.appointment_id) AS additional_names " +
                      "FROM bills b " +
                      "JOIN appointments a ON b.appointment_id = a.appointment_id " +
                      "JOIN patients p ON a.patient_id = p.patient_id " +
+                     "JOIN treatments tr ON a.treatment_id = tr.treatment_id " +
                      "WHERE b.bill_id = ?";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -122,10 +142,15 @@ public class BillDAO {
 
     public List<Bill> getPendingBills() {
         List<Bill> bills = new ArrayList<>();
-        String sql = "SELECT b.*, a.appointment_number, p.patient_name " +
+        String sql = "SELECT b.*, a.appointment_number, p.patient_name, tr.treatment_name, " +
+                     "(SELECT GROUP_CONCAT(t.treatment_name SEPARATOR ', ') " +
+                     "FROM appointment_treatments atx " +
+                     "JOIN treatments t ON atx.treatment_id = t.treatment_id " +
+                     "WHERE atx.appointment_id = a.appointment_id) AS additional_names " +
                      "FROM bills b " +
                      "JOIN appointments a ON b.appointment_id = a.appointment_id " +
                      "JOIN patients p ON a.patient_id = p.patient_id " +
+                     "JOIN treatments tr ON a.treatment_id = tr.treatment_id " +
                      "WHERE b.payment_status = 'PENDING'";
         try (Connection conn = DBConnection.getInstance().getConnection();
              Statement stmt = conn.createStatement();
@@ -200,6 +225,8 @@ public class BillDAO {
         b.setPaymentStatus(rs.getString("payment_status"));
         b.setPaymentMethod(rs.getString("payment_method"));
         b.setBilledAt(rs.getString("billed_at"));
+        b.setTreatmentName(rs.getString("treatment_name"));
+        b.setAdditionalTreatmentNames(rs.getString("additional_names"));
         return b;
     }
 }

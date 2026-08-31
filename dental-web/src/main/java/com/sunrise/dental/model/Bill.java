@@ -22,6 +22,8 @@ public class Bill {
     private String paymentStatus;
     private String paymentMethod;
     private String billedAt;
+    private String treatmentName;
+    private String additionalTreatmentNames;
 
     public Bill() {}
 
@@ -51,4 +53,8 @@ public class Bill {
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
     public String getBilledAt() { return billedAt; }
     public void setBilledAt(String billedAt) { this.billedAt = billedAt; }
+    public String getTreatmentName() { return treatmentName; }
+    public void setTreatmentName(String treatmentName) { this.treatmentName = treatmentName; }
+    public String getAdditionalTreatmentNames() { return additionalTreatmentNames; }
+    public void setAdditionalTreatmentNames(String additionalTreatmentNames) { this.additionalTreatmentNames = additionalTreatmentNames; }
 }

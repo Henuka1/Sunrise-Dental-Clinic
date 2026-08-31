@@ -72,6 +72,8 @@ export interface Bill {
   paymentStatus: "PENDING" | "PAID" | "PARTIAL";
   paymentMethod: "CASH" | "CARD" | "ONLINE";
   billedAt?: string;
+  treatmentName?: string;
+  additionalTreatmentNames?: string;
 }
 
 export interface LoginRequest {

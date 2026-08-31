@@ -77,6 +77,12 @@ export default function ReceiptModal({ bill, onClose }: Props) {
           <div className="mt-4 space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-500">Receipt No</span>
+              <span className="font-semibold text-slate-900">
+                {`RCP-${String(bill.billId).padStart(5, "0")}`}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Bill No</span>
               <span className="font-semibold text-slate-900">{bill.billNumber}</span>
             </div>
             <div className="flex justify-between">
@@ -110,13 +116,28 @@ export default function ReceiptModal({ bill, onClose }: Props) {
             </thead>
             <tbody className="text-slate-700">
               <tr className="border-t border-slate-100">
-                <td className="py-2">Primary Treatment</td>
-                <td className="py-2 text-right">{formatCurrency(primaryTotal)}</td>
+                <td className="py-2">
+                  <span className="font-medium text-slate-800">
+                    {bill.treatmentName || "Primary Treatment"}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-slate-400">
+                    Base Cost {formatCurrency(bill.treatmentCost)} + Consultation Fee{" "}
+                    {formatCurrency(bill.consultationFee)}
+                  </span>
+                </td>
+                <td className="py-2 align-top text-right">{formatCurrency(primaryTotal)}</td>
               </tr>
               {bill.additionalCharges > 0 && (
                 <tr className="border-t border-slate-100">
-                  <td className="py-2">Additional Treatments</td>
-                  <td className="py-2 text-right">{formatCurrency(bill.additionalCharges)}</td>
+                  <td className="py-2">
+                    <span className="font-medium text-slate-800">Additional Treatments</span>
+                    {bill.additionalTreatmentNames && (
+                      <span className="mt-0.5 block text-xs text-slate-400">
+                        {bill.additionalTreatmentNames}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 align-top text-right">{formatCurrency(bill.additionalCharges)}</td>
                 </tr>
               )}
               <tr className="border-t border-slate-100">
