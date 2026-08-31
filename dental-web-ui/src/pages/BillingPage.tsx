@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
+import ReceiptModal from "@/components/ReceiptModal";
 import EmptyState, { TableLoading } from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import { billingService } from "@/lib/services";
@@ -18,6 +19,7 @@ export default function BillingPage() {
   const [error, setError] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [selectedMethods, setSelectedMethods] = useState<Record<number, "CASH" | "CARD" | "ONLINE">>({});
+  const [receiptBill, setReceiptBill] = useState<Bill | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -170,6 +172,15 @@ export default function BillingPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="inline-flex items-center gap-1.5 text-teal-600 hover:bg-teal-50"
+                          onClick={() => setReceiptBill(bill)}
+                        >
+                          <Receipt className="h-4 w-4" />
+                          Receipt
+                        </Button>
                         {bill.paymentStatus !== "PAID" && (
                           <div className="flex items-center justify-end gap-2">
                             <select
@@ -207,6 +218,8 @@ export default function BillingPage() {
           </div>
         </Card>
       )}
+
+      <ReceiptModal bill={receiptBill} onClose={() => setReceiptBill(null)} />
     </div>
   );
 }
