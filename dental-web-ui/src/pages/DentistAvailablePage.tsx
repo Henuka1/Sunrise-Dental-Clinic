@@ -491,6 +491,14 @@ function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
   const [daySchedule, setDaySchedule] = useState<DaySchedule | null>(null);
   const [loadingCal, setLoadingCal] = useState(false);
   const [loadingDay, setLoadingDay] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [savingAdd, setSavingAdd] = useState(false);
+  const [quickForm, setQuickForm] = useState({
+    startTime: "09:00",
+    endTime: "17:00",
+    isAvailable: true,
+    reason: "",
+  });
 
   const loadCalendar = async () => {
     if (!dentistId) return;
@@ -527,6 +535,47 @@ function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
     loadDay(selectedDate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dentistId, selectedDate, slotMinutes]);
+
+  // Close the quick-add form whenever the picked day changes.
+  useEffect(() => {
+    setShowAdd(false);
+  }, [selectedDate]);
+
+  const handleQuickAdd = async () => {
+    if (!dentistId) {
+      toast.error("No dentist record linked to your account");
+      return;
+    }
+    if (quickForm.isAvailable && quickForm.startTime >= quickForm.endTime) {
+      toast.error("Start time must be before end time");
+      return;
+    }
+    setSavingAdd(true);
+    try {
+      await availabilityService.addDateRange(dentistId, {
+        dentistId,
+        startDate: selectedDate,
+        endDate: selectedDate,
+        startTime: quickForm.startTime.replace(/\s/g, ""),
+        endTime: quickForm.endTime.replace(/\s/g, ""),
+        isAvailable: quickForm.isAvailable,
+        reason: quickForm.reason.trim() || undefined,
+      });
+      toast.success(
+        quickForm.isAvailable
+          ? `Availability added for ${formatDate(selectedDate)} (${formatTime(quickForm.startTime)} – ${formatTime(quickForm.endTime)})`
+          : `${formatDate(selectedDate)} blocked as unavailable`
+      );
+      setShowAdd(false);
+      setQuickForm((f) => ({ ...f, reason: "" }));
+      loadCalendar();
+      loadDay(selectedDate);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSavingAdd(false);
+    }
+  };
 
   const prevMonth = () => {
     if (month === 1) { setMonth(12); setYear((y) => y - 1); } else setMonth((m) => m - 1);
@@ -566,7 +615,7 @@ function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
               Monthly Calendar
             </span>
           }
-          description="Click a day to see its free time slots"
+          description="Pick a day to view slots or add availability for it"
           action={
             <div className="flex items-center gap-1">
               <button
@@ -616,18 +665,86 @@ function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
           }
           description={formatDate(selectedDate)}
         />
-        <div className="mt-3 flex items-center gap-2">
-          <label className="text-xs font-medium text-slate-500">Slot length</label>
-          <select
-            value={slotMinutes}
-            onChange={(e) => setSlotMinutes(Number(e.target.value))}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-500">Slot length</label>
+            <select
+              value={slotMinutes}
+              onChange={(e) => setSlotMinutes(Number(e.target.value))}
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+            >
+              {[15, 20, 30, 45, 60].map((m) => (
+                <option key={m} value={m}>{m} min</option>
+              ))}
+            </select>
+          </div>
+          <Button
+            onClick={() => setShowAdd((v) => !v)}
+            className={showAdd ? "bg-slate-500 hover:bg-slate-600" : ""}
           >
-            {[15, 20, 30, 45, 60].map((m) => (
-              <option key={m} value={m}>{m} min</option>
-            ))}
-          </select>
+            {showAdd ? "Close" : <><CalendarPlus className="h-4 w-4" /> Add</>}
+          </Button>
         </div>
+
+        {/* Quick add availability for the picked day */}
+        {showAdd && (
+          <div className="mt-3 rounded-2xl border border-teal-200 bg-teal-50/50 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <CalendarPlus className="h-4 w-4 text-teal-600" />
+              Add availability for {formatDate(selectedDate)}
+            </p>
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={() => setQuickForm((f) => ({ ...f, isAvailable: !f.isAvailable }))}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-white transition ${
+                  quickForm.isAvailable
+                    ? "bg-green-600 shadow shadow-green-600/30"
+                    : "bg-red-600 shadow shadow-red-600/30"
+                }`}
+              >
+                {quickForm.isAvailable ? (
+                  <><CheckCircle2 className="h-3.5 w-3.5" /> Available this day</>
+                ) : (
+                  <><Ban className="h-3.5 w-3.5" /> Block this day</>
+                )}
+              </button>
+            </div>
+            {quickForm.isAvailable && (
+              <div className="mt-3 flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-500">
+                  From
+                  <input
+                    type="time"
+                    value={quickForm.startTime}
+                    onChange={(e) => setQuickForm((f) => ({ ...f, startTime: e.target.value }))}
+                    className="mt-0.5 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+                  />
+                </label>
+                <label className="text-xs font-medium text-slate-500">
+                  To
+                  <input
+                    type="time"
+                    value={quickForm.endTime}
+                    onChange={(e) => setQuickForm((f) => ({ ...f, endTime: e.target.value }))}
+                    className="mt-0.5 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+                  />
+                </label>
+              </div>
+            )}
+            <input
+              type="text"
+              value={quickForm.reason}
+              placeholder="Reason (optional) — e.g. Extra clinic, Leave"
+              onChange={(e) => setQuickForm((f) => ({ ...f, reason: e.target.value }))}
+              className="mt-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+            />
+            <Button onClick={handleQuickAdd} disabled={savingAdd} className="mt-3 w-full">
+              <Save className="h-4 w-4" />
+              {savingAdd ? "Saving..." : "Save for this date"}
+            </Button>
+          </div>
+        )}
 
         {loadingDay ? (
           <div className="flex justify-center py-10">
