@@ -162,8 +162,38 @@ function AvailabilityView({ dentist, appointments, availability, user, onChanged
   // Bumped whenever the calendar quick-add saves, so the Date-Range list below
   // reloads without requiring a full page refresh.
   const [dateRangeVersion, setDateRangeVersion] = useState(0);
+  // Today's date-range override (extra hours / block / custom slot length).
+  // Lets the "Available Time Slots" summary card reflect a per-date slot length
+  // and window instead of always slicing today's weekly schedule at 30 min.
+  const [todayOverride, setTodayOverride] = useState<DentistDateAvailability | null>(null);
   const today = getTodayString();
   const todayDow = new Date().getDay();
+
+  // Fetch the range covering today so the summary card honours any per-date
+  // override's slot length (e.g. 60 min for Aug 30) rather than a fixed 30 min.
+  useEffect(() => {
+    let cancelled = false;
+    if (!dentist?.dentistId) {
+      setTodayOverride(null);
+      return;
+    }
+    availabilityService
+      .getDateRanges(dentist.dentistId)
+      .then((res) => {
+        if (cancelled) return;
+        const ranges = res.data.data || [];
+        const covering =
+          ranges.find((r) => today >= r.startDate && today <= r.endDate) ?? null;
+        setTodayOverride(covering);
+      })
+      .catch(() => {
+        if (!cancelled) setTodayOverride(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dentist?.dentistId, today, dataVersion, dateRangeVersion]);
+
   const active = appointments.filter(
     (a) => a.status === "SCHEDULED" || a.status === "COMPLETED"
   );
@@ -175,14 +205,28 @@ function AvailabilityView({ dentist, appointments, availability, user, onChanged
   const windowStart = todaySlot?.startTime ?? `${WORK_START}:00`;
   const windowEnd = todaySlot?.endTime ?? `${WORK_END}:00`;
 
+  // A per-date override for today (if any) overrides the weekly window and
+  // brings its own slot length. A blocking override makes today unavailable.
+  const overriddenUnavailable = todayOverride !== null && !todayOverride.isAvailable;
+  const overrideWindow =
+    todayOverride?.isAvailable && todayOverride.startTime && todayOverride.endTime
+      ? todayOverride
+      : null;
+  const effWindowStart = overrideWindow ? overrideWindow.startTime! : windowStart;
+  const effWindowEnd = overrideWindow ? overrideWindow.endTime! : windowEnd;
+  const effSlotMinutes =
+    todayOverride?.slotMinutes && todayOverride.isAvailable
+      ? todayOverride.slotMinutes
+      : DEFAULT_SLOT_MINUTES;
+
   const freeSlots: string[] = [];
-  if (todaySlot?.isAvailable) {
-    let [h, m] = windowStart.split(":").map(Number);
-    const [eh, em] = windowEnd.split(":").map(Number);
+  if (todaySlot?.isAvailable && !overriddenUnavailable) {
+    let [h, m] = effWindowStart.split(":").map(Number);
+    const [eh, em] = effWindowEnd.split(":").map(Number);
     while (h < eh || (h === eh && m < em)) {
       const slot = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
       if (!bookedTimes.includes(slot)) freeSlots.push(slot);
-      m += 30;
+      m += effSlotMinutes;
       if (m >= 60) { m -= 60; h += 1; }
     }
   }
@@ -304,12 +348,14 @@ function AvailabilityView({ dentist, appointments, availability, user, onChanged
           <CardHeader
             title="Available Time Slots"
             description={
-              todaySlot?.isAvailable
-                ? `Today's hours ${formatTime(windowStart)} – ${formatTime(windowEnd)}`
+              overriddenUnavailable
+                ? "You are blocked/unavailable today by a date-range entry"
+                : todaySlot?.isAvailable
+                ? `Today's hours ${formatTime(effWindowStart)} – ${formatTime(effWindowEnd)} • ${effSlotMinutes} min slots`
                 : "You are marked unavailable today — set your hours below"
             }
           />
-          {!todaySlot?.isAvailable ? (
+          {!todaySlot?.isAvailable || overriddenUnavailable ? (
             <div className="mt-4 flex flex-col items-center rounded-xl border border-dashed border-slate-300 py-10 text-center">
               <CalendarOff className="h-8 w-8 text-slate-400" />
               <p className="mt-3 text-sm text-slate-500">
