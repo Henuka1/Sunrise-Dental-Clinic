@@ -152,6 +152,9 @@ interface AvailabilityViewProps {
 
 function AvailabilityView({ dentist, appointments, availability, user, onChanged }: AvailabilityViewProps) {
   const [dataVersion, setDataVersion] = useState(0);
+  // Bumped whenever the calendar quick-add saves, so the Date-Range list below
+  // reloads without requiring a full page refresh.
+  const [dateRangeVersion, setDateRangeVersion] = useState(0);
   const today = getTodayString();
   const todayDow = new Date().getDay();
   const active = appointments.filter(
@@ -327,10 +330,18 @@ function AvailabilityView({ dentist, appointments, availability, user, onChanged
       </div>
 
       {/* Monthly calendar + selected day slot checker */}
-      <AvailabilityCalendar key={`cal-${dataVersion}`} dentistId={dentist?.dentistId ?? 0} />
+      <AvailabilityCalendar
+        key={`cal-${dataVersion}`}
+        dentistId={dentist?.dentistId ?? 0}
+        onChanged={() => setDateRangeVersion((v) => v + 1)}
+      />
 
       {/* Date-range availability manager */}
-      <DateRangeManager dentistId={dentist?.dentistId ?? 0} onChanged={() => setDataVersion((v) => v + 1)} />
+      <DateRangeManager
+        dentistId={dentist?.dentistId ?? 0}
+        refreshKey={dateRangeVersion}
+        onChanged={() => setDataVersion((v) => v + 1)}
+      />
 
       {/* Manage weekly availability */}
       <ManageAvailability dentistId={dentist?.dentistId ?? 0} availability={availability} onChanged={onChanged} />
@@ -485,7 +496,7 @@ const CAL_CELL = {
 
 // ==================== Monthly calendar + day slot checker ====================
 
-function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
+function AvailabilityCalendar({ dentistId, onChanged }: { dentistId: number; onChanged?: () => void }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
@@ -582,6 +593,8 @@ function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
       setQuickForm((f) => ({ ...f, reason: "" }));
       loadCalendar();
       loadDay(selectedDate);
+      // Notify the parent so the Date-Range Availability list below refreshes.
+      onChanged?.();
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -911,7 +924,7 @@ function CalendarGrid({
 
 // ==================== Date-range availability manager ====================
 
-function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChanged: () => void }) {
+function DateRangeManager({ dentistId, refreshKey = 0, onChanged }: { dentistId: number; refreshKey?: number; onChanged: () => void }) {
   const [ranges, setRanges] = useState<DentistDateAvailability[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -943,7 +956,7 @@ function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChang
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dentistId]);
+  }, [dentistId, refreshKey]);
 
   const handleAdd = async () => {
     if (!dentistId) {
