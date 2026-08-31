@@ -9,6 +9,13 @@ import {
   CalendarOff,
   Save,
   CalendarCog,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  CalendarPlus,
+  Trash2,
+  Timer,
+  Ban,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -18,7 +25,15 @@ import Button from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
 import { dentistService, appointmentService, availabilityService } from "@/lib/services";
 import { getTodayString, formatTime, formatDate, getErrorMessage } from "@/lib/utils";
-import type { Appointment, Dentist, DentistAvailability } from "@/types";
+import type {
+  Appointment,
+  Dentist,
+  DentistAvailability,
+  DentistDateAvailability,
+  CalendarDay,
+  CalendarMonthData,
+  DaySchedule,
+} from "@/types";
 
 /** Clinic working hours used when no availability is saved yet. */
 const WORK_START = 9; // 09:00
@@ -132,6 +147,7 @@ interface AvailabilityViewProps {
 }
 
 function AvailabilityView({ dentist, appointments, availability, user, onChanged }: AvailabilityViewProps) {
+  const [dataVersion, setDataVersion] = useState(0);
   const today = getTodayString();
   const todayDow = new Date().getDay();
   const active = appointments.filter(
@@ -306,6 +322,12 @@ function AvailabilityView({ dentist, appointments, availability, user, onChanged
         </Card>
       </div>
 
+      {/* Monthly calendar + selected day slot checker */}
+      <AvailabilityCalendar key={`cal-${dataVersion}`} dentistId={dentist?.dentistId ?? 0} />
+
+      {/* Date-range availability manager */}
+      <DateRangeManager dentistId={dentist?.dentistId ?? 0} onChanged={() => setDataVersion((v) => v + 1)} />
+
       {/* Manage weekly availability */}
       <ManageAvailability dentistId={dentist?.dentistId ?? 0} availability={availability} onChanged={onChanged} />
     </div>
@@ -433,6 +455,536 @@ function ManageAvailability({ dentistId, availability, onChanged }: ManageAvaila
         Unchecked days are treated as fully unavailable. Booked appointments inside your hours are
         excluded from the free slots shown above.
       </p>
+    </Card>
+  );
+}
+
+/** Local date string (YYYY-MM-DD) without timezone shifts. */
+function toDateString(d: Date): string {
+  return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d
+    .getDate()
+    .toString()
+    .padStart(2, "0")}`;
+}
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+const CAL_CELL = {
+  available: "border-green-300 bg-green-50 text-green-900 hover:bg-green-100",
+  override: "border-indigo-300 bg-indigo-50 text-indigo-900 hover:bg-indigo-100",
+  blocked: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100",
+  off: "border-slate-200 bg-slate-50 text-slate-400",
+};
+
+// ==================== Monthly calendar + day slot checker ====================
+
+function AvailabilityCalendar({ dentistId }: { dentistId: number }) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
+  const [calendar, setCalendar] = useState<CalendarMonthData | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
+  const [slotMinutes, setSlotMinutes] = useState(30);
+  const [daySchedule, setDaySchedule] = useState<DaySchedule | null>(null);
+  const [loadingCal, setLoadingCal] = useState(false);
+  const [loadingDay, setLoadingDay] = useState(false);
+
+  const loadCalendar = async () => {
+    if (!dentistId) return;
+    setLoadingCal(true);
+    try {
+      const res = await availabilityService.calendar(dentistId, year, month);
+      setCalendar(res.data.data);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setLoadingCal(false);
+    }
+  };
+
+  const loadDay = async (date: string, minutes = slotMinutes) => {
+    if (!dentistId) return;
+    setLoadingDay(true);
+    try {
+      const res = await availabilityService.daySchedule(dentistId, date, minutes);
+      setDaySchedule(res.data.data);
+    } catch (err) {
+      setDaySchedule(null);
+    } finally {
+      setLoadingDay(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCalendar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dentistId, year, month]);
+
+  useEffect(() => {
+    loadDay(selectedDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dentistId, selectedDate, slotMinutes]);
+
+  const prevMonth = () => {
+    if (month === 1) { setMonth(12); setYear((y) => y - 1); } else setMonth((m) => m - 1);
+  };
+  const nextMonth = () => {
+    if (month === 12) { setMonth(1); setYear((y) => y + 1); } else setMonth((m) => m + 1);
+  };
+
+  const dayMap = new Map<string, CalendarDay>();
+  (calendar?.days || []).forEach((d) => dayMap.set(d.date, d));
+
+  const firstDow = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const cells: (string | null)[] = [
+    ...Array.from({ length: firstDow }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => toDateString(new Date(year, month - 1, i + 1))),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const today = getTodayString();
+
+  const cellClass = (d: CalendarDay) => {
+    if (d.source === "OVERRIDE") {
+      return d.available ? CAL_CELL.override : CAL_CELL.blocked;
+    }
+    return d.available ? CAL_CELL.available : CAL_CELL.off;
+  };
+
+  return (
+    <div className="mt-6 grid gap-4 lg:grid-cols-5">
+      {/* Calendar */}
+      <Card className="lg:col-span-3">
+        <CardHeader
+          title={
+            <span className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-teal-600" />
+              Monthly Calendar
+            </span>
+          }
+          description="Click a day to see its free time slots"
+          action={
+            <div className="flex items-center gap-1">
+              <button
+                onClick={prevMonth}
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100"
+                aria-label="Previous month"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="min-w-[9.5rem] text-center text-sm font-semibold text-slate-800">
+                {MONTH_NAMES[month - 1]} {year}
+              </span>
+              <button
+                onClick={nextMonth}
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100"
+                aria-label="Next month"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          }
+        />
+        {loadingCal ? (
+          <div className="flex justify-center py-10">
+            <Spinner />
+          </div>
+        ) : (
+          <CalendarGrid
+            cells={cells}
+            dayMap={dayMap}
+            selectedDate={selectedDate}
+            today={today}
+            cellClass={cellClass}
+            onSelect={setSelectedDate}
+          />
+        )}
+      </Card>
+
+      {/* Selected day slot checker */}
+      <Card className="lg:col-span-2">
+        <CardHeader
+          title={
+            <span className="flex items-center gap-2">
+              <Timer className="h-5 w-5 text-teal-600" />
+              Free Time Slots
+            </span>
+          }
+          description={formatDate(selectedDate)}
+        />
+        <div className="mt-3 flex items-center gap-2">
+          <label className="text-xs font-medium text-slate-500">Slot length</label>
+          <select
+            value={slotMinutes}
+            onChange={(e) => setSlotMinutes(Number(e.target.value))}
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+          >
+            {[15, 20, 30, 45, 60].map((m) => (
+              <option key={m} value={m}>{m} min</option>
+            ))}
+          </select>
+        </div>
+
+        {loadingDay ? (
+          <div className="flex justify-center py-10">
+            <Spinner />
+          </div>
+        ) : !daySchedule ? (
+          <div className="mt-4 rounded-xl border border-dashed border-slate-300 py-8 text-center text-sm text-slate-500">
+            Select a day on the calendar.
+          </div>
+        ) : !daySchedule.available ? (
+          <div className="mt-4 flex flex-col items-center rounded-xl border border-dashed border-red-200 bg-red-50/50 py-8 text-center">
+            <CalendarOff className="h-8 w-8 text-red-400" />
+            <p className="mt-3 text-sm font-medium text-red-600">Not available on this day</p>
+            {daySchedule.source === "OVERRIDE" && (
+              <p className="mt-1 text-xs text-slate-500">Blocked by a date-range override</p>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="mt-3 flex items-center justify-between rounded-xl bg-teal-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm text-teal-800">
+                <Clock className="h-4 w-4" />
+                <span className="font-semibold">
+                  {formatTime(daySchedule.startTime || "")} – {formatTime(daySchedule.endTime || "")}
+                </span>
+              </div>
+              <span className="rounded-full bg-teal-600 px-3 py-1 text-xs font-bold text-white">
+                {Math.floor(daySchedule.totalFreeMinutes / 60)}h {daySchedule.totalFreeMinutes % 60}m free
+              </span>
+            </div>
+            {daySchedule.slots.length === 0 ? (
+              <p className="mt-4 rounded-xl border border-dashed border-slate-300 py-6 text-center text-sm text-slate-500">
+                No free slots remaining — fully booked.
+              </p>
+            ) : (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {daySchedule.slots.map((s) => (
+                  <div key={s.start} className="rounded-xl border border-green-200 bg-green-50 px-3 py-2">
+                    <p className="text-sm font-semibold text-green-800">
+                      {formatTime(s.start)} – {formatTime(s.end)}
+                    </p>
+                    <p className="text-[11px] text-green-600">{s.minutes} min available</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {daySchedule.bookedAppointments.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase text-slate-400">Booked</p>
+                <ul className="mt-1 space-y-1">
+                  {daySchedule.bookedAppointments.map((a) => (
+                    <li key={a.appointmentId} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                      <span>{a.patientName}</span>
+                      <span className="font-semibold text-teal-700">{formatTime(a.appointmentTime)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function CalendarGrid({
+  cells,
+  dayMap,
+  selectedDate,
+  today,
+  cellClass,
+  onSelect,
+}: {
+  cells: (string | null)[];
+  dayMap: Map<string, CalendarDay>;
+  selectedDate: string;
+  today: string;
+  cellClass: (d: CalendarDay) => string;
+  onSelect: (date: string) => void;
+}) {
+  return (
+    <>
+      <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-slate-400">
+        {DAY_NAMES.map((d) => (
+          <span key={d}>{d.slice(0, 3)}</span>
+        ))}
+      </div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {cells.map((date, i) => {
+          if (!date) return <span key={`blank-${i}`} />;
+          const d = dayMap.get(date);
+          const isSel = date === selectedDate;
+          return (
+            <button
+              key={date}
+              onClick={() => onSelect(date)}
+              className={`relative flex h-16 flex-col items-center justify-center rounded-xl border text-sm transition ${
+                d ? cellClass(d) : "border-slate-100 bg-white text-slate-300"
+              } ${isSel ? "ring-2 ring-teal-600 ring-offset-1" : ""}`}
+            >
+              <span className={`font-semibold ${date === today ? "underline decoration-2 underline-offset-2" : ""}`}>
+                {Number(date.slice(-2))}
+              </span>
+              {d?.available && d.startTime && (
+                <span className="mt-0.5 text-[10px] opacity-80">
+                  {d.startTime}–{d.endTime}
+                </span>
+              )}
+              {d?.source === "OVERRIDE" && (
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+              )}
+              {!!d?.bookedCount && (
+                <span className="absolute left-1 top-1 rounded-full bg-teal-600 px-1.5 text-[9px] font-bold text-white">
+                  {d.bookedCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded border border-green-300 bg-green-50" /> Weekly hours</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded border border-indigo-300 bg-indigo-50" /> Date-range override</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded border border-red-200 bg-red-50" /> Blocked / vacation</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-teal-600" /> Booked count</span>
+      </div>
+    </>
+  );
+}
+
+// ==================== Date-range availability manager ====================
+
+function DateRangeManager({ dentistId, onChanged }: { dentistId: number; onChanged: () => void }) {
+  const [ranges, setRanges] = useState<DentistDateAvailability[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    startDate: getTodayString(),
+    endDate: getTodayString(),
+    startTime: "09:00",
+    endTime: "17:00",
+    isAvailable: true,
+    reason: "",
+  });
+
+  const load = async () => {
+    if (!dentistId) return;
+    setLoading(true);
+    try {
+      const res = await availabilityService.getDateRanges(dentistId);
+      setRanges(res.data.data || []);
+    } catch {
+      setRanges([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dentistId]);
+
+  const handleAdd = async () => {
+    if (!dentistId) {
+      toast.error("No dentist record linked to your account");
+      return;
+    }
+    if (form.startDate > form.endDate) {
+      toast.error("End date must be on or after start date");
+      return;
+    }
+    if (form.isAvailable && form.startTime >= form.endTime) {
+      toast.error("Start time must be before end time");
+      return;
+    }
+    setSaving(true);
+    try {
+      await availabilityService.addDateRange(dentistId, {
+        dentistId,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        startTime: form.startTime.replace(/\s/g, ""),
+        endTime: form.endTime.replace(/\s/g, ""),
+        isAvailable: form.isAvailable,
+        reason: form.reason.trim() || undefined,
+      });
+      toast.success(
+        form.isAvailable
+          ? `Availability added for ${formatDate(form.startDate)} – ${formatDate(form.endDate)}`
+          : `Dates blocked: ${formatDate(form.startDate)} – ${formatDate(form.endDate)}`
+      );
+      setForm((f) => ({ ...f, reason: "" }));
+      load();
+      onChanged();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = async (id: number) => {
+    if (!dentistId) return;
+    setCancellingId(id);
+    try {
+      await availabilityService.cancelDateRange(dentistId, id);
+      toast.success("Availability entry cancelled");
+      load();
+      onChanged();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  return (
+    <Card className="mt-6">
+      <CardHeader
+        title={
+          <span className="flex items-center gap-2">
+            <CalendarPlus className="h-5 w-5 text-teal-600" />
+            Date-Range Availability
+          </span>
+        }
+        description="Add extra hours, special working days or block vacation dates. Overrides your weekly schedule."
+      />
+
+      {/* Add form */}
+      <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-3">
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, isAvailable: !f.isAvailable }))}
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+              form.isAvailable
+                ? "bg-green-600 text-white shadow shadow-green-600/30"
+                : "bg-red-600 text-white shadow shadow-red-600/30"
+            }`}
+          >
+            {form.isAvailable ? <CheckCircle2 className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+            {form.isAvailable ? "Available (extra hours)" : "Blocked (vacation / off)"}
+          </button>
+        </div>
+        <label className="text-xs font-medium text-slate-500">
+          From date
+          <input
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+          />
+        </label>
+        <label className="text-xs font-medium text-slate-500">
+          To date
+          <input
+            type="date"
+            value={form.endDate}
+            onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+          />
+        </label>
+        {form.isAvailable && (
+          <>
+            <label className="text-xs font-medium text-slate-500">
+              From time
+              <input
+                type="time"
+                value={form.startTime}
+                onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+              />
+            </label>
+            <label className="text-xs font-medium text-slate-500">
+              To time
+              <input
+                type="time"
+                value={form.endTime}
+                onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+              />
+            </label>
+          </>
+        )}
+        <label className="text-xs font-medium text-slate-500">
+          Reason (optional)
+          <input
+            type="text"
+            value={form.reason}
+            placeholder={form.isAvailable ? "e.g. Special clinic day" : "e.g. Annual leave"}
+            onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+          />
+        </label>
+        <div className="flex items-end">
+          <Button onClick={handleAdd} disabled={saving || !dentistId} className="w-full sm:w-auto">
+            <CalendarPlus className="h-4 w-4" />
+            {saving ? "Adding..." : "Add Availability"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Saved ranges */}
+      <div className="mt-4 space-y-2">
+        {loading ? (
+          <div className="flex justify-center py-6">
+            <Spinner />
+          </div>
+        ) : ranges.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 py-8 text-center">
+            <CalendarDays className="mx-auto h-7 w-7 text-slate-400" />
+            <p className="mt-2 text-sm text-slate-500">
+              No date-range overrides yet — your weekly schedule applies to every week.
+            </p>
+          </div>
+        ) : (
+          ranges.map((r) => (
+            <div
+              key={r.dateAvailabilityId}
+              className={`flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
+                r.isAvailable
+                  ? "border-indigo-200 bg-indigo-50/50"
+                  : "border-red-200 bg-red-50/50"
+              }`}
+            >
+              <div>
+                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  {r.isAvailable ? (
+                    <CheckCircle2 className="h-4 w-4 text-indigo-600" />
+                  ) : (
+                    <Ban className="h-4 w-4 text-red-500" />
+                  )}
+                  {formatDate(r.startDate)}
+                  {r.endDate !== r.startDate && ` → ${formatDate(r.endDate)}`}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {r.isAvailable
+                    ? `${formatTime(r.startTime)} – ${formatTime(r.endTime)}`
+                    : "Unavailable"}
+                  {r.reason ? ` • ${r.reason}` : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => handleCancel(r.dateAvailabilityId!)}
+                disabled={cancellingId === r.dateAvailabilityId}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {cancellingId === r.dateAvailabilityId ? "Cancelling..." : "Cancel"}
+              </button>
+            </div>
+          ))
+        )}
+      </div>
     </Card>
   );
 }

@@ -636,6 +636,42 @@ CREATE TABLE IF NOT EXISTS dentist_availability (
 
 ALTER TABLE dentist_availability
     ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE dentist_availability
+    ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- ============================================================
+-- STEP 14e: MIGRATION — Dentist date-range availability.
+-- Lets a dentist add availability (or block dates e.g. vacation)
+-- for specific dates / date ranges, overriding the weekly schedule.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS dentist_date_availability (
+    date_availability_id INT PRIMARY KEY AUTO_INCREMENT,
+
+    dentist_id INT NOT NULL,
+
+    start_date DATE NOT NULL,
+
+    end_date DATE NOT NULL,
+
+    start_time TIME NOT NULL DEFAULT '09:00:00',
+
+    end_time TIME NOT NULL DEFAULT '17:00:00',
+
+    is_available BOOLEAN NOT NULL DEFAULT TRUE,
+
+    reason VARCHAR(255) NULL,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_date_availability_dentist
+        FOREIGN KEY (dentist_id) REFERENCES dentists(dentist_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT chk_date_range CHECK (end_date >= start_date)
+
+) ENGINE=InnoDB;
+
 
 
 -- ============================================================

@@ -94,6 +94,56 @@ public class AppointmentDAO {
         return appointments;
     }
 
+    /** Appointments of one dentist on a single date (status != CANCELLED). */
+    public List<Appointment> getByDentistAndDate(int dentistId, String date) {
+        List<Appointment> appointments = new ArrayList<>();
+        String sql = "SELECT a.*, p.patient_name, d.dentist_name, t.treatment_name " +
+                     "FROM appointments a " +
+                     "JOIN patients p ON a.patient_id = p.patient_id " +
+                     "JOIN dentists d ON a.dentist_id = d.dentist_id " +
+                     "JOIN treatments t ON a.treatment_id = t.treatment_id " +
+                     "WHERE a.dentist_id = ? AND a.appointment_date = ? AND a.status <> 'CANCELLED' " +
+                     "ORDER BY a.appointment_time";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, dentistId);
+            ps.setString(2, date);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                appointments.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return appointments;
+    }
+
+    /** Appointments of one dentist within an inclusive date range (status != CANCELLED). */
+    public List<Appointment> getByDentistAndDateRange(int dentistId, String fromDate, String toDate) {
+        List<Appointment> appointments = new ArrayList<>();
+        String sql = "SELECT a.*, p.patient_name, d.dentist_name, t.treatment_name " +
+                     "FROM appointments a " +
+                     "JOIN patients p ON a.patient_id = p.patient_id " +
+                     "JOIN dentists d ON a.dentist_id = d.dentist_id " +
+                     "JOIN treatments t ON a.treatment_id = t.treatment_id " +
+                     "WHERE a.dentist_id = ? AND a.appointment_date BETWEEN ? AND ? " +
+                     "AND a.status <> 'CANCELLED' " +
+                     "ORDER BY a.appointment_date, a.appointment_time";
+        try (Connection conn = DBConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, dentistId);
+            ps.setString(2, fromDate);
+            ps.setString(3, toDate);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                appointments.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return appointments;
+    }
+
     public List<Appointment> searchAppointments(String query) {
         List<Appointment> appointments = new ArrayList<>();
         String sql = "SELECT a.*, p.patient_name, d.dentist_name, t.treatment_name " +

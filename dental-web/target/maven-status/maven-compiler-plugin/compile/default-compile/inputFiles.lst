@@ -2,6 +2,7 @@ C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\d
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dao\AppointmentDAO.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dao\AvailabilityDAO.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dao\BillDAO.java
+C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dao\DateAvailabilityDAO.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dao\DentistDAO.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dao\PatientDAO.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\dao\TreatmentDAO.java
@@ -17,6 +18,7 @@ C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\d
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\model\Bill.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\model\Dentist.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\model\DentistAvailability.java
+C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\model\DentistDateAvailability.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\model\Patient.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\model\Treatment.java
 C:\Users\User\Desktop\my\bsc java\sunrise\dental-web\src\main\java\com\sunrise\dental\model\User.java

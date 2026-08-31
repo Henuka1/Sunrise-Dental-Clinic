@@ -18,8 +18,8 @@ export function Card({ className, noPadding, ...props }: CardProps) {
   );
 }
 
-interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
-  title: string;
+interface CardHeaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+  title: React.ReactNode;
   description?: string;
   action?: React.ReactNode;
 }

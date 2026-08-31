@@ -63,6 +63,29 @@ export const availabilityService = {
       `/dentists/${dentistId}/availability`,
       slots
     ),
+  getDateRanges: (dentistId: number) =>
+    api.get<ApiResponse<import("@/types").DentistDateAvailability[]>>(
+      `/dentists/${dentistId}/date-availability`
+    ),
+  addDateRange: (dentistId: number, data: Partial<import("@/types").DentistDateAvailability>) =>
+    api.post<ApiResponse<import("@/types").DentistDateAvailability[]>>(
+      `/dentists/${dentistId}/date-availability`,
+      data
+    ),
+  cancelDateRange: (dentistId: number, dateAvailabilityId: number) =>
+    api.delete<ApiResponse<import("@/types").DentistDateAvailability[]>>(
+      `/dentists/${dentistId}/date-availability/${dateAvailabilityId}`
+    ),
+  calendar: (dentistId: number, year: number, month: number) =>
+    api.get<ApiResponse<import("@/types").CalendarMonthData>>(
+      `/dentists/${dentistId}/calendar`,
+      { params: { year, month } }
+    ),
+  daySchedule: (dentistId: number, date: string, slotMinutes?: number) =>
+    api.get<ApiResponse<import("@/types").DaySchedule>>(
+      `/dentists/${dentistId}/day-schedule`,
+      { params: { date, slotMinutes } }
+    ),
 };
 
 export const treatmentService = {

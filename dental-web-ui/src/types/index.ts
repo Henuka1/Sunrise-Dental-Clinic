@@ -171,3 +171,55 @@ export interface DentistAvailability {
   endTime: string;
   isAvailable: boolean;
 }
+
+export interface DentistDateAvailability {
+  dateAvailabilityId?: number;
+  dentistId: number;
+  /** "YYYY-MM-DD" */
+  startDate: string;
+  /** "YYYY-MM-DD" inclusive */
+  endDate: string;
+  /** "HH:MM" 24h format */
+  startTime: string;
+  /** "HH:MM" 24h format */
+  endTime: string;
+  isAvailable: boolean;
+  reason?: string;
+}
+
+export interface CalendarDay {
+  date: string;
+  dayOfWeek: number;
+  bookedCount: number;
+  source: "WEEKLY" | "OVERRIDE";
+  available: boolean;
+  startTime?: string | null;
+  endTime?: string | null;
+  reason?: string | null;
+}
+
+export interface CalendarMonthData {
+  year: number;
+  month: number;
+  days: CalendarDay[];
+}
+
+export interface FreeSlot {
+  start: string;
+  end: string;
+  minutes: number;
+}
+
+export interface DaySchedule {
+  date: string;
+  dayOfWeek: number;
+  available: boolean;
+  source: "WEEKLY" | "OVERRIDE";
+  startTime?: string | null;
+  endTime?: string | null;
+  slotMinutes: number;
+  totalFreeMinutes: number;
+  bookedCount: number;
+  slots: FreeSlot[];
+  bookedAppointments: Appointment[];
+}

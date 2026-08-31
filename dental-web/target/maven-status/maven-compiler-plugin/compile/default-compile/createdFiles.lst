@@ -1,7 +1,9 @@
+com\sunrise\dental\dao\DateAvailabilityDAO.class
 com\sunrise\dental\resources\TreatmentResource.class
 com\sunrise\dental\dao\AvailabilityDAO.class
 com\sunrise\dental\resources\AppointmentResource.class
 com\sunrise\dental\resources\UserResource$AccessRequestDTO.class
+com\sunrise\dental\model\DentistDateAvailability.class
 com\sunrise\dental\model\User.class
 com\sunrise\dental\resources\DentistResource$1.class
 com\sunrise\dental\config\ApplicationConfig.class
