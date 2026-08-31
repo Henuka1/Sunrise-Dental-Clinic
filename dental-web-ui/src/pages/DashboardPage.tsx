@@ -28,6 +28,27 @@ export default function DashboardPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(() => new Date());
+
+  // Keep the live clock ticking every second.
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const dateLine = now.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+  const timeLine = now.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
   const load = async () => {
     setLoading(true);
@@ -115,15 +136,30 @@ export default function DashboardPage() {
         title="Dashboard"
         description={isDentist ? "Your appointments at a glance" : "Today's overview at a glance"}
         action={
-          !isDentist ? (
-            <Link
-              to="/appointments/new"
-              className="inline-flex h-11 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white transition-colors hover:bg-teal-700"
-            >
-              <Plus className="h-4 w-4" />
-              New Appointment
-            </Link>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Live date & time */}
+            <div className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/70 px-4 py-2.5 shadow-[0_12px_28px_-18px_rgba(13,148,136,0.55)] backdrop-blur">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-600/30">
+                <Calendar className="h-5 w-5" />
+              </div>
+              <div className="min-w-[150px]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700/80">
+                  {greeting}
+                </p>
+                <p className="text-[13px] font-bold leading-tight text-slate-900">{timeLine}</p>
+                <p className="text-[11px] font-medium leading-tight text-slate-500">{dateLine}</p>
+              </div>
+            </div>
+            {!isDentist && (
+              <Link
+                to="/appointments/new"
+                className="inline-flex h-11 items-center gap-2 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white transition-colors hover:bg-teal-700"
+              >
+                <Plus className="h-4 w-4" />
+                New Appointment
+              </Link>
+            )}
+          </div>
         }
       />
 
