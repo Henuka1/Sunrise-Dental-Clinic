@@ -5,6 +5,7 @@ import com.resend.core.exception.ResendException;
 import com.resend.services.emails.model.CreateEmailOptions;
 import com.resend.services.emails.model.CreateEmailResponse;
 import com.sunrise.dental.model.Appointment;
+import com.sunrise.dental.model.Bill;
 import com.sunrise.dental.util.ValidationUtil;
 
 import java.io.IOException;
@@ -111,6 +112,140 @@ public class EmailNotificationService {
                     + apt.getAppointmentNumber() + ": " + e.getMessage(), e);
             return FAILED;
         }
+    }
+
+    /**
+     * Fires the payment receipt email asynchronously after a bill is marked PAID.
+     * Never throws — payment update must not fail because of email problems.
+     */
+    public void sendBillReceiptAsync(Bill bill, String patientEmail) {
+        mailExecutor.submit(() -> {
+            try {
+                String status = sendBillReceipt(bill, patientEmail);
+                LOGGER.info("Receipt email status for bill " + bill.getBillNumber() + ": " + status);
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Unexpected error while sending receipt email for bill "
+                        + bill.getBillNumber(), e);
+            }
+        });
+    }
+
+    /**
+     * Sends the payment receipt email synchronously and returns a status code.
+     */
+    public String sendBillReceipt(Bill bill, String patientEmail) {
+        String apiKey = getResendApiKey();
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            LOGGER.severe("Email configuration error: RESEND_API_KEY is not set — receipt email cannot be sent.");
+            return NOT_AVAILABLE;
+        }
+
+        if (patientEmail == null || patientEmail.trim().isEmpty()) {
+            LOGGER.warning("No email address on record for patient " + bill.getPatientName()
+                    + " (" + bill.getBillNumber() + ") — skipping receipt email.");
+            return NOT_SENT;
+        }
+        String email = patientEmail.trim();
+        if (!ValidationUtil.isValidEmail(email)) {
+            LOGGER.warning("Invalid email format '" + maskEmail(email) + "' for bill "
+                    + bill.getBillNumber() + " — skipping receipt email.");
+            return NOT_SENT;
+        }
+
+        String from = getEnvOrDotEnv("RESEND_FROM_EMAIL");
+        if (from == null || from.trim().isEmpty()) {
+            from = "Sunrise Dental Clinic <onboarding@resend.dev>";
+        }
+
+        try {
+            Resend resend = new Resend(apiKey);
+            CreateEmailOptions options = CreateEmailOptions.builder()
+                    .from(from)
+                    .to(email)
+                    .subject("Payment Receipt - Sunrise Dental Clinic (" + bill.getBillNumber() + ")")
+                    .html(buildReceiptHtml(bill))
+                    .build();
+            CreateEmailResponse result = resend.emails().send(options);
+            LOGGER.info("Receipt email sent via Resend for bill "
+                    + bill.getBillNumber() + " (emailId=" + result.getId() + ")");
+            return SENT;
+        } catch (ResendException e) {
+            LOGGER.log(Level.WARNING, "Resend API error while sending receipt email for bill "
+                    + bill.getBillNumber() + ": " + e.getMessage(), e);
+            return FAILED;
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to send receipt email for bill "
+                    + bill.getBillNumber() + ": " + e.getMessage(), e);
+            return FAILED;
+        }
+    }
+
+    /** Builds the HTML payment receipt email. All dynamic values are HTML-escaped. */
+    private String buildReceiptHtml(Bill bill) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!DOCTYPE html><html><body style=\"margin:0;padding:0;background-color:#f4f7f7;")
+          .append("font-family:'Segoe UI',Helvetica,Arial,sans-serif;\">")
+          .append("<div style=\"max-width:560px;margin:24px auto;background:#ffffff;border-radius:10px;")
+          .append("overflow:hidden;border:1px solid #e2e8f0;\">")
+
+          // Header
+          .append("<div style=\"background-color:#0d9488;padding:28px 32px;text-align:center;\">")
+          .append("<h1 style=\"color:#ffffff;margin:0;font-size:22px;letter-spacing:2px;\">")
+          .append("SUNRISE DENTAL CLINIC</h1>")
+          .append("<p style=\"color:#ccfbf1;margin:6px 0 0;font-size:13px;\">Payment Receipt</p></div>")
+
+          // Body
+          .append("<div style=\"padding:32px;\">")
+          .append("<p style=\"font-size:15px;color:#1f2937;margin:0 0 8px;\">Dear ")
+          .append(escapeHtml(bill.getPatientName())).append(",</p>")
+          .append("<p style=\"font-size:15px;color:#1f2937;margin:0 0 24px;\">")
+          .append("We have received your payment in full. Thank you!</p>")
+
+          // Receipt details card
+          .append("<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
+          .append("style=\"background-color:#f0fdfa;border-radius:8px;border:1px solid #99f6e4;\">")
+          .append(detailRow("Receipt Number", bill.getBillNumber(), true))
+          .append(detailRow("Appointment", bill.getAppointmentNumber(), false))
+          .append(detailRow("Treatment", bill.getTreatmentName(), false));
+        if (bill.getAdditionalTreatmentNames() != null && !bill.getAdditionalTreatmentNames().isEmpty()) {
+            sb.append(detailRow("Additional Treatments", bill.getAdditionalTreatmentNames(), false));
+        }
+        sb.append(detailRow("Treatment Cost", formatMoney(bill.getTreatmentCost()), false));
+        if (bill.getConsultationFee() > 0) {
+            sb.append(detailRow("Consultation Fee", formatMoney(bill.getConsultationFee()), false));
+        }
+        if (bill.getAdditionalCharges() > 0) {
+            sb.append(detailRow("Additional Charges", formatMoney(bill.getAdditionalCharges()), false));
+        }
+        if (bill.getDiscount() > 0) {
+            sb.append(detailRow("Discount", "- " + formatMoney(bill.getDiscount()), false));
+        }
+        sb.append(detailRow("Amount Paid", formatMoney(bill.getTotalAmount()), true))
+          .append(detailRow("Payment Method", bill.getPaymentMethod() == null ? "" : bill.getPaymentMethod(), false))
+          .append("</table>")
+
+          .append("<p style=\"font-size:14px;color:#374151;margin:24px 0 0;line-height:1.6;\">")
+          .append("Please keep this email as your receipt. If you have any questions about this payment, ")
+          .append("please contact Sunrise Dental Clinic.</p>")
+
+          .append("<p style=\"font-size:14px;color:#1f2937;margin:24px 0 0;\">")
+          .append("Thank you for choosing Sunrise Dental Clinic.</p>")
+          .append("<p style=\"font-size:14px;color:#1f2937;margin:16px 0 0;\">")
+          .append("Regards,<br><strong>Sunrise Dental Clinic</strong><br>Colombo</p>")
+          .append("</div>")
+
+          // Footer
+          .append("<div style=\"background-color:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;\">")
+          .append("<p style=\"color:#94a3b8;font-size:11px;margin:0;text-align:center;\">")
+          .append("This is an automated message. Please do not reply directly to this email.</p></div>")
+
+          .append("</div></body></html>");
+        return sb.toString();
+    }
+
+    /** Formats a money amount as LKR. */
+    private String formatMoney(double amount) {
+        return String.format("LKR %,.2f", amount);
     }
 
     /** Builds the professional HTML confirmation email. All dynamic values are HTML-escaped. */

@@ -7,12 +7,18 @@ package com.sunrise.dental.resources;
 import com.google.gson.Gson;
 import com.sunrise.dental.dao.AppointmentDAO;
 import com.sunrise.dental.dao.BillDAO;
+import com.sunrise.dental.dao.PatientDAO;
 import com.sunrise.dental.dao.TreatmentDAO;
 import com.sunrise.dental.dto.ApiResponseDTO;
 import com.sunrise.dental.factory.BillFactory;
 import com.sunrise.dental.model.Appointment;
 import com.sunrise.dental.model.Bill;
+import com.sunrise.dental.model.Patient;
 import com.sunrise.dental.model.Treatment;
+import com.sunrise.dental.service.EmailNotificationService;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import com.sunrise.dental.util.ResponseUtil;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -23,10 +29,13 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("bills")
 public class BillResource {
+    private static final Logger LOGGER = Logger.getLogger(BillResource.class.getName());
     private final Gson gson = new Gson();
     private final BillDAO billDAO = new BillDAO();
     private final AppointmentDAO appointmentDAO = new AppointmentDAO();
     private final TreatmentDAO treatmentDAO = new TreatmentDAO();
+    private final PatientDAO patientDAO = new PatientDAO();
+    private final EmailNotificationService emailService = new EmailNotificationService();
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -120,6 +129,27 @@ public class BillResource {
             if (!updated) {
                 return ResponseUtil.badRequest("Failed to update payment");
             }
+
+            // When the bill is marked PAID, email the payment receipt to the patient.
+            if ("PAID".equalsIgnoreCase(request.getPaymentStatus())) {
+                try {
+                    Bill bill = billDAO.getBillById(id);
+                    Appointment apt = bill != null
+                            ? appointmentDAO.getAppointmentById(bill.getAppointmentId()) : null;
+                    Patient patient = apt != null
+                            ? patientDAO.getPatientById(apt.getPatientId()) : null;
+                    if (bill != null && patient != null) {
+                        bill.setPaymentMethod(request.getPaymentMethod());
+                        emailService.sendBillReceiptAsync(bill, patient.getEmail());
+                    } else {
+                        LOGGER.warning("Skipping receipt email: bill/patient details not found for bill id " + id);
+                    }
+                } catch (Exception emailEx) {
+                    // Never fail the payment update because of email problems
+                    LOGGER.log(Level.WARNING, "Could not send receipt email for bill id " + id, emailEx);
+                }
+            }
+
             return ResponseUtil.success(new ApiResponseDTO(true, "Payment updated successfully", null));
         } catch (Exception e) {
             return ResponseUtil.serverError("Error: " + e.getMessage());
