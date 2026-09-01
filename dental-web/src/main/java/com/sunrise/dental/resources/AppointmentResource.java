@@ -7,13 +7,16 @@ package com.sunrise.dental.resources;
 import com.google.gson.Gson;
 import com.sunrise.dental.dao.AppointmentDAO;
 import com.sunrise.dental.dao.BillDAO;
+import com.sunrise.dental.dao.PatientDAO;
 import com.sunrise.dental.dao.TreatmentDAO;
 import com.sunrise.dental.dto.ApiResponseDTO;
 import com.sunrise.dental.factory.BillFactory;
 import com.sunrise.dental.model.Appointment;
 import com.sunrise.dental.model.Bill;
+import com.sunrise.dental.model.Patient;
 import com.sunrise.dental.model.Treatment;
 import com.sunrise.dental.model.User;
+import com.sunrise.dental.service.EmailNotificationService;
 import com.sunrise.dental.util.ResponseUtil;
 import com.sunrise.dental.util.ValidationUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +35,8 @@ public class AppointmentResource {
     private final AppointmentDAO appointmentDAO = new AppointmentDAO();
     private final TreatmentDAO treatmentDAO = new TreatmentDAO();
     private final BillDAO billDAO = new BillDAO();
+    private final PatientDAO patientDAO = new PatientDAO();
+    private final EmailNotificationService emailNotificationService = new EmailNotificationService();
 
     private User getLoggedInUser(HttpServletRequest request) {
         if (request == null) return null;
@@ -129,6 +134,12 @@ public class AppointmentResource {
             if (apt.getTreatmentId() <= 0) {
                 return ResponseUtil.badRequest("Valid treatment ID is required");
             }
+
+            // Validate patient exists and capture email for notification
+            Patient patient = patientDAO.getPatientById(apt.getPatientId());
+            if (patient == null) {
+                return ResponseUtil.badRequest("Patient not found");
+            }
             if (!ValidationUtil.isValidDateRange(apt.getAppointmentDate())) {
                 return ResponseUtil.badRequest("Date must be today or within next 90 days");
             }
@@ -150,6 +161,9 @@ public class AppointmentResource {
             if (!added) {
                 return ResponseUtil.badRequest("Failed to create appointment");
             }
+
+            // Fire-and-forget appointment confirmation email via Resend (never blocks / never fails the request)
+            emailNotificationService.sendAppointmentConfirmationAsync(apt, patient.getEmail());
 
             return ResponseUtil.created(new ApiResponseDTO(true, "Appointment created successfully", apt));
         } catch (Exception e) {

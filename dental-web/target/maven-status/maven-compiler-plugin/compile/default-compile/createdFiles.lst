@@ -25,6 +25,7 @@ com\sunrise\dental\model\Appointment.class
 com\sunrise\dental\resources\BillResource.class
 com\sunrise\dental\filter\CorsFilter.class
 com\sunrise\dental\dao\PatientDAO.class
+com\sunrise\dental\service\EmailNotificationService.class
 com\sunrise\dental\web\JakartaRestConfiguration.class
 com\sunrise\dental\util\DBConnection.class
 com\sunrise\dental\dao\AppointmentDAO.class
