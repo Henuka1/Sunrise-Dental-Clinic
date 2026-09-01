@@ -232,4 +232,38 @@ public class AuthResource {
             return ResponseUtil.serverError("Profile error: " + e.getMessage());
         }
     }
+
+    /**
+     * Returns the logged-in user's CURRENT permissions, re-read from the DB.
+     * Used by the frontend to pick up User Access Control changes in real time
+     * (without re-login). Also refreshes the in-memory session so backend
+     * permission checks stay in sync.
+     */
+    @GET
+    @Path("permissions")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getPermissions(@Context HttpServletRequest request) {
+        User loggedIn = getLoggedInUser(request);
+        if (loggedIn == null) {
+            return ResponseUtil.unauthorized("Unauthorized - Please log in");
+        }
+        try {
+            User fresh = userDAO.getUserById(loggedIn.getUserId());
+            if (fresh == null || !fresh.isActive()) {
+                return ResponseUtil.unauthorized("Your account is no longer active");
+            }
+            java.util.List<String> permissions =
+                    PermissionUtil.resolvePermissions(fresh.getRole(), fresh.getPermissions());
+
+            // Keep the in-memory session in sync with the DB.
+            loggedIn.setPermissions(fresh.getPermissions());
+
+            com.sunrise.dental.dto.ApiResponseDTO body =
+                    new com.sunrise.dental.dto.ApiResponseDTO(true, "Permissions retrieved",
+                            java.util.Collections.singletonMap("permissions", permissions));
+            return ResponseUtil.success(body);
+        } catch (Exception e) {
+            return ResponseUtil.serverError("Permissions error: " + e.getMessage());
+        }
+    }
 }

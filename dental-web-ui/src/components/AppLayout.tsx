@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -23,6 +23,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { NAV_LINKS, CLINIC_INFO } from "@/lib/constants";
 import { getEffectivePermissions, PATH_MODULE } from "@/lib/permissions";
+import { authService } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -43,7 +44,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -69,6 +70,47 @@ export default function AppLayout() {
     logout();
     navigate("/");
   };
+
+  // Real-time User Access Control sync: poll fresh permissions from the DB
+  // so admin-side changes apply without re-login. If access to the current
+  // page is revoked, kick the user back to an allowed page (or log them out
+  // if their account was deactivated).
+  const userRef = useRef(user);
+  userRef.current = user;
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncPermissions = async () => {
+      const current = userRef.current;
+      if (!current) return;
+      try {
+        const res = await authService.getPermissions();
+        if (cancelled) return;
+        const fresh: string[] = res?.data?.data?.permissions ?? [];
+        const prev = getEffectivePermissions(current);
+        if (JSON.stringify([...prev].sort()) !== JSON.stringify([...fresh].sort())) {
+          updateUser({ ...current, permissions: fresh });
+        }
+      } catch (err: any) {
+        if (cancelled) return;
+        if (err?.response?.status === 401) {
+          // Account deactivated or session invalid — force logout.
+          logout();
+          navigate("/");
+        }
+      }
+    };
+
+    syncPermissions();
+    const interval = setInterval(syncPermissions, 8000);
+    window.addEventListener("focus", syncPermissions);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener("focus", syncPermissions);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.userId]);
 
   const SidebarNav = ({ mobile = false }: { mobile?: boolean }) => {
     const isCollapsed = collapsed && !mobile;

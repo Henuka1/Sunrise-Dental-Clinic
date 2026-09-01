@@ -22,6 +22,9 @@ export const authService = {
   login: (data: LoginRequest) => api.post<LoginResponse>("/auth/login", data),
   logout: () => api.post<ApiResponse<null>>("/auth/logout"),
   getProfile: () => api.get<ApiResponse<UserProfileData>>("/auth/profile"),
+  // Fresh permissions read from the DB (real-time User Access Control sync).
+  getPermissions: () =>
+    api.get<ApiResponse<{ permissions: string[] }>>("/auth/permissions"),
   updateProfile: (data: ProfileUpdateRequest) =>
     api.put<ApiResponse<UserProfileData>>("/auth/profile", data),
 };
