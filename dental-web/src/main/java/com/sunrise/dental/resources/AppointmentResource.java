@@ -7,12 +7,14 @@ package com.sunrise.dental.resources;
 import com.google.gson.Gson;
 import com.sunrise.dental.dao.AppointmentDAO;
 import com.sunrise.dental.dao.BillDAO;
+import com.sunrise.dental.dao.DentistDAO;
 import com.sunrise.dental.dao.PatientDAO;
 import com.sunrise.dental.dao.TreatmentDAO;
 import com.sunrise.dental.dto.ApiResponseDTO;
 import com.sunrise.dental.factory.BillFactory;
 import com.sunrise.dental.model.Appointment;
 import com.sunrise.dental.model.Bill;
+import com.sunrise.dental.model.Dentist;
 import com.sunrise.dental.model.Patient;
 import com.sunrise.dental.model.Treatment;
 import com.sunrise.dental.model.User;
@@ -36,8 +38,8 @@ public class AppointmentResource {
     private final TreatmentDAO treatmentDAO = new TreatmentDAO();
     private final BillDAO billDAO = new BillDAO();
     private final PatientDAO patientDAO = new PatientDAO();
+    private final DentistDAO dentistDAO = new DentistDAO();
     private final EmailNotificationService emailNotificationService = new EmailNotificationService();
-
     private User getLoggedInUser(HttpServletRequest request) {
         if (request == null) return null;
         Object attr = request.getAttribute("authenticatedUser");
@@ -160,6 +162,18 @@ public class AppointmentResource {
             boolean added = appointmentDAO.addAppointment(apt);
             if (!added) {
                 return ResponseUtil.badRequest("Failed to create appointment");
+            }
+
+            // Populate display names (frontend sends only IDs) so the response
+            // and the confirmation email contain real patient/dentist/treatment names
+            apt.setPatientName(patient.getPatientName());
+            Dentist dentist = dentistDAO.getDentistById(apt.getDentistId());
+            if (dentist != null) {
+                apt.setDentistName(dentist.getDentistName());
+            }
+            Treatment treatment = treatmentDAO.getTreatmentById(apt.getTreatmentId());
+            if (treatment != null) {
+                apt.setTreatmentName(treatment.getTreatmentName());
             }
 
             // Fire-and-forget appointment confirmation email via Resend (never blocks / never fails the request)
