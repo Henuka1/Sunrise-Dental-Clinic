@@ -4,3 +4,4 @@ target/
 
 src/main/resources/.env
 target/classes/.env
+/nbproject/

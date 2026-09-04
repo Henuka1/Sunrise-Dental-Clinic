@@ -1,0 +1,12 @@
+com\sunrise\dental\BaseDaoTest.class
+com\sunrise\dental\resources\AuthResourceTest.class
+com\sunrise\dental\filter\CorsFilterTest.class
+com\sunrise\dental\dao\PatientDAOTest.class
+com\sunrise\dental\filter\AuthenticationFilterTest.class
+com\sunrise\dental\dao\TreatmentDAOTest.class
+com\sunrise\dental\dao\DentistDAOTest.class
+com\sunrise\dental\dao\UserDAOTest.class
+com\sunrise\dental\dao\AppointmentDAOTest.class
+com\sunrise\dental\dao\BillDAOTest.class
+com\sunrise\dental\factory\BillFactoryTest.class
+com\sunrise\dental\util\ValidationUtilTest.class

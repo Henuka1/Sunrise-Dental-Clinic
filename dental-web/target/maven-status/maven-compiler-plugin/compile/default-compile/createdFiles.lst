@@ -41,3 +41,4 @@ com\sunrise\dental\resources\UserResource.class
 com\sunrise\dental\util\TokenStore.class
 com\sunrise\dental\dto\LoginResponseDTO.class
 com\sunrise\dental\resources\AuthResource.class
+com\sunrise\dental\util\TokenStore$Entry.class
