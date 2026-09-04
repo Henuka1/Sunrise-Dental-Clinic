@@ -17,7 +17,7 @@ public class User {
     private int dentistId;
     private String createdAt;
     private String permissions;
-    private boolean isActive;
+    private boolean isActive = true;
     private String contactNumber;
     private String email;
     private String specialization;

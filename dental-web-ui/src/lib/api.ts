@@ -25,15 +25,32 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err: AxiosError) => {
-    if (err.response?.status === 401) {
-      // Don't auto-redirect on login — let the LoginPage show the error toast.
+    // Only an explicitly malformed/expired token (HTTP 401) from the backend
+    // should log the user out. Network failures (no response), timeouts and
+    // server errors (5xx) do NOT mean the session is bad — they can be
+    // transient (e.g. a Railway container restarting). Logging out on those
+    // causes the annoying "kicked back to login" flicker.
+    const status = err.response?.status;
+
+    if (status === 401) {
+      // Don't auto-redirect on the login request itself — let the LoginPage
+      // surface the credential error toast instead.
       const isLoginRequest = err.config?.url?.includes("/auth/login");
       if (!isLoginRequest) {
+        // Diagnostic: log exactly which request triggered the 401 logout so we
+        // can see whether it's a stale-token (backend restart) or a bad header.
+        console.warn(
+          "[api] 401 on",
+          err.config?.method?.toUpperCase(),
+          err.config?.url,
+          "→ logging out"
+        );
         localStorage.removeItem(STORAGE_KEYS.TOKEN);
         localStorage.removeItem(STORAGE_KEYS.USER);
         window.location.href = "/";
       }
     }
+
     return Promise.reject(err);
   }
 );

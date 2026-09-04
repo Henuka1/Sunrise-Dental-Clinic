@@ -199,7 +199,19 @@ public class DentistDAO {
         d.setSpecialization(rs.getString("specialization"));
         d.setContactNumber(rs.getString("contact_number"));
         d.setEmail(rs.getString("email"));
-        d.setActive(rs.getBoolean("is_active"));
+        d.setActive(isActive(rs));
         return d;
+    }
+
+    /**
+     * Robustly read the is_active column.
+     * Handles NULL (defaults to active) and any non-zero value (active).
+     */
+    private boolean isActive(ResultSet rs) throws SQLException {
+        int val = rs.getInt("is_active");
+        if (rs.wasNull()) {
+            return true; // NULL = active (default)
+        }
+        return val != 0; // Any non-zero = active
     }
 }

@@ -36,7 +36,9 @@
         <dependency>
     <groupId>com.mysql</groupId>
     <artifactId>mysql-connector-j</artifactId>
-    <version>8.0.33</version>
+    <!-- MySQL 9.x server support (Railway MySQL is 9.7.2).
+         Connector 8.0.x is too old for MySQL 9 authentication. -->
+    <version>9.2.0</version>
     <!-- REMOVE this line if exists: -->
     <!-- <scope>provided</scope> -->
 </dependency>

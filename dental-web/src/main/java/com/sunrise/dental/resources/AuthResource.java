@@ -216,6 +216,7 @@ public class AuthResource {
                     loggedIn.getUsername(),
                     loggedIn.getFullName(),
                     loggedIn.getRole());
+            profile.setActive(loggedIn.isActive());
             profile.setContactNumber(loggedIn.getContactNumber());
             profile.setEmail(loggedIn.getEmail());
             profile.setDentistId(loggedIn.getDentistId());

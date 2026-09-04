@@ -81,7 +81,7 @@ public class UserDAO {
                     );
                     if (permissionsReady) {
                         user.setPermissions(rs.getString("permissions"));
-                        user.setActive(rs.getBoolean("is_active"));
+                        user.setActive(isActive(rs));
                         user.setContactNumber(rs.getString("contact_number"));
                         user.setEmail(rs.getString("email"));
                     } else {
@@ -93,7 +93,11 @@ public class UserDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            // Connection/auth failures (wrong host, SSL, public-key retrieval,
+            // timeout...) were historically swallowed and turned every DB problem
+            // into a generic "Invalid username or password" 401. Rethrow so the
+            // REST layer surfaces the REAL cause during diagnosis.
+            throw new RuntimeException("Database login error: " + e.getMessage(), e);
         }
         return null;
     }
@@ -114,7 +118,7 @@ public class UserDAO {
                     );
                     if (permissionsReady) {
                         user.setPermissions(rs.getString("permissions"));
-                        user.setActive(rs.getBoolean("is_active"));
+                        user.setActive(isActive(rs));
                         user.setContactNumber(rs.getString("contact_number"));
                         user.setEmail(rs.getString("email"));
                     }
@@ -326,11 +330,23 @@ public class UserDAO {
         );
         if (permissionsReady) {
             user.setPermissions(rs.getString("permissions"));
-            user.setActive(rs.getBoolean("is_active"));
+            user.setActive(isActive(rs));
             user.setContactNumber(rs.getString("contact_number"));
             user.setEmail(rs.getString("email"));
         }
         user.setCreatedAt(rs.getString("created_at"));
         return user;
+    }
+
+    /**
+     * Robustly read the is_active column.
+     * Handles NULL (defaults to active) and any non-zero value (active).
+     */
+    private boolean isActive(ResultSet rs) throws SQLException {
+        int val = rs.getInt("is_active");
+        if (rs.wasNull()) {
+            return true; // NULL = active (default)
+        }
+        return val != 0; // Any non-zero = active
     }
 }

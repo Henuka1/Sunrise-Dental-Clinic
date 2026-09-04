@@ -330,6 +330,11 @@ public class UserResource {
                 return ResponseUtil.badRequest("You cannot deactivate your own account");
             }
 
+            // Prevent deactivating the admin account to avoid lockout
+            if ("ADMIN".equals(existing.getRole()) && "admin".equals(existing.getUsername())) {
+                return ResponseUtil.badRequest("Cannot deactivate the primary admin account");
+            }
+
             ActiveRequestDTO dto = gson.fromJson(json, ActiveRequestDTO.class);
             if (dto == null) {
                 return ResponseUtil.badRequest("Request body is required");
