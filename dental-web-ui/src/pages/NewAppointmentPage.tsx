@@ -219,6 +219,10 @@ export default function NewAppointmentPage() {
       toast.error("Please select or create a patient first");
       return;
     }
+    if (!selectedPatient.patientId || selectedPatient.patientId <= 0) {
+      toast.error("Selected patient has an invalid ID. Please search and re-select the patient.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await appointmentService.create({

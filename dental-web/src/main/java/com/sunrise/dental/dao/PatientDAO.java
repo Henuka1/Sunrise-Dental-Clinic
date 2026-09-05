@@ -89,7 +89,19 @@ public class PatientDAO {
             ps.setString(4, patient.getEmail());
             ps.setString(5, patient.getDateOfBirth());
             ps.setString(6, patient.getGender());
-            return ps.executeUpdate() > 0;
+            int rows = ps.executeUpdate();
+            if (rows > 0) {
+                // Retrieve the auto-generated patient_id and set it on the
+                // object so the caller (e.g. PatientResource) can return the
+                // newly created patient with its real ID.
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (keys.next()) {
+                        patient.setPatientId(keys.getInt(1));
+                    }
+                }
+                return true;
+            }
+            return false;
         } catch (SQLException e) {
             e.printStackTrace();
         }
