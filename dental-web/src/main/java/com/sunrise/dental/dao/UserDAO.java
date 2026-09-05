@@ -28,24 +28,39 @@ public class UserDAO {
     private void ensurePermissionsColumn(Connection conn) {
         if (permissionsReady) return;
         try (Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions VARCHAR(255) DEFAULT NULL AFTER role"
-            );
-            stmt.executeUpdate(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"
-            );
-            stmt.executeUpdate(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS contact_number VARCHAR(20) DEFAULT NULL"
-            );
-            stmt.executeUpdate(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(100) DEFAULT NULL"
-            );
+            // MySQL does NOT support "ALTER TABLE ... ADD COLUMN IF NOT EXISTS"
+            // (that is MariaDB-only syntax). Instead, check information_schema
+            // for each column and only ALTER when it is actually missing.
+            addColumnIfMissing(conn, stmt, "permissions",
+                "ALTER TABLE users ADD COLUMN permissions VARCHAR(255) DEFAULT NULL AFTER role");
+            addColumnIfMissing(conn, stmt, "is_active",
+                "ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE");
+            addColumnIfMissing(conn, stmt, "contact_number",
+                "ALTER TABLE users ADD COLUMN contact_number VARCHAR(20) DEFAULT NULL");
+            addColumnIfMissing(conn, stmt, "email",
+                "ALTER TABLE users ADD COLUMN email VARCHAR(100) DEFAULT NULL");
             permissionsReady = true;
         } catch (SQLException e) {
-            // Column may already exist under a different state, or ALTER unsupported.
             // Fall back to queries that ignore the extra columns.
             permissionsReady = false;
             e.printStackTrace();
+        }
+    }
+
+    private void addColumnIfMissing(Connection conn, Statement stmt, String column, String alterSql)
+            throws SQLException {
+        ResultSet rs = null;
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS "
+                + "WHERE TABLE_SCHEMA = DATABASE() "
+                + "AND TABLE_NAME = 'users' AND COLUMN_NAME = ?")) {
+            ps.setString(1, column);
+            rs = ps.executeQuery();
+            if (rs.next() && rs.getInt(1) == 0) {
+                stmt.executeUpdate(alterSql);
+            }
+        } finally {
+            if (rs != null) rs.close();
         }
     }
 
